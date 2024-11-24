@@ -1,0 +1,15 @@
+.idea
+.eslintcache
+.DS_Store
+coverage
+.nyc_output
+.sandbox
+.rollup.cache
+node_modules
+npm-debug.log
+junit.xml
+*.tsbuildinfo
+**/*.tgz
+**/package
+.env.local
+dist

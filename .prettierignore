@@ -1,0 +1,10 @@
+.github/
+/coverage
+packages/*/dist
+packages/*/release
+examples/*/dist
+*.json
+CHANGELOG.md
+*.yml
+.rollup.cache
+.changeset

@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext"],
+    "esModuleInterop": true,
+    "strict": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "allowSyntheticDefaultImports": true,
+    "declaration": false,       // Set to false
+    "declarationDir": null      // Remove this line or set to null
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}

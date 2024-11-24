@@ -1,0 +1,14 @@
+{
+  "git": {
+    "tag": true,
+    "requireCleanWorkingDir": true
+  },
+  "npm": {
+    "publish": true
+  },
+  "hooks": {
+    "after:bump": [
+      "pnpm run build"
+    ]
+  }
+}
