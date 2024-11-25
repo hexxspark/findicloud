@@ -2,114 +2,191 @@ import {execSync} from 'child_process';
 import * as fs from 'fs';
 import {join} from 'path';
 
-import {BasePathFinder} from '../base'; // 确保导入路径正确
-import {PathInfo} from '../types';
+import {BasePathFinder} from '../base';
+import {PathInfo, PathMetadata, PathSource, PathType} from '../types';
 
 export class WindowsPathFinder extends BasePathFinder {
   async findPaths(): Promise<PathInfo[]> {
     try {
-      await this._findInRegistry();
+      // First try to find paths in common locations
       await this._findInCommonLocations();
+
+      // Only try registry if no paths found
+      await this._findInRegistry();
+
+      // Then discover app storage paths in found root directories
+      await this._discoverAppStoragePaths();
 
       return Array.from(this.pathMap.values())
         .sort((a, b) => b.score - a.score)
         .filter(info => info.score > 0);
     } catch (error: any) {
-      throw new Error(`Failed to find iCloud paths: ${error.message}`);
-    }
-  }
-
-  private async _findInRegistry(): Promise<void> {
-    const primaryRegPath =
-      'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\SyncRootManager\\iCloudDrive';
-    const fallbackRegPaths = [
-      'HKEY_CURRENT_USER\\Software\\Apple Inc.\\iCloud',
-      'HKEY_LOCAL_MACHINE\\SOFTWARE\\Apple Inc.\\iCloud',
-      'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Apple Inc.\\iCloud',
-    ];
-
-    await this._searchRegistry(primaryRegPath);
-
-    if (!Array.from(this.pathMap.values()).some(p => p.score > 20)) {
-      for (const regPath of fallbackRegPaths) {
-        await this._searchRegistry(regPath);
-      }
-    }
-  }
-
-  private async _searchRegistry(regPath: string): Promise<void> {
-    try {
-      const output = execSync(`reg query "${regPath}" /s /f "icloud" /d`, {
-        encoding: 'utf8',
-        maxBuffer: 1024 * 1024 * 10,
-        stdio: ['pipe', 'pipe', 'ignore'],
-      });
-
-      const entries = output.split('\r\n\r\n');
-      for (const entry of entries) {
-        const lines = entry.trim().split('\r\n');
-        if (lines.length <= 1) continue;
-
-        const keyPath = lines[0];
-        for (const line of lines.slice(1)) {
-          const match = line.trim().match(/([^\s]+)\s+REG_\S+\s+(.+)/);
-          if (!match) continue;
-
-          const [_, name, value] = match;
-          const path = value.trim();
-
-          if (!path.includes(':\\')) continue;
-
-          this._addPath(path, {
-            source: 'registry',
-            regPath: keyPath,
-            valueName: name,
-          });
-        }
-      }
-    } catch {
-      // Ignore registry errors
+      console.debug('Error finding paths:', error);
+      return [];
     }
   }
 
   private async _findInCommonLocations(): Promise<void> {
     const userProfile = process.env.USERPROFILE;
-    const driveLetters = this.getAvailableDrives();
-    const commonPaths = [
-      userProfile ? join(userProfile, 'iCloudDrive') : null,
-      userProfile ? join(userProfile, 'iCloud Drive') : null,
-      ...driveLetters.map(driver => `${driver}\\iCloudDrive`),
-      ...driveLetters.map(driver => `${driver}\\iCloud\\iCloudDrive`),
-    ];
-
-    // 如果 USERPROFILE 不存在，仍然添加其他常见路径
     if (!userProfile) {
-      commonPaths.push(...driveLetters.map(driver => `${driver}\\`));
-      commonPaths.push(...driveLetters.map(driver => `${driver}\\iCloudDrive`));
-      commonPaths.push(...driveLetters.map(driver => `${driver}\\iCloud\\iCloudDrive`));
+      console.debug('USERPROFILE environment variable not found');
+      return;
     }
 
-    for (const path of commonPaths) {
-      if (path) {
-        // 确保 path 是有效的字符串
+    // Common locations to check
+    const pathsToCheck = [
+      // User profile locations
+      join(userProfile, 'iCloudDrive'),
+      join(userProfile, 'iCloud Drive'),
+
+      // Root locations
+      'C:\\iCloudDrive',
+      'C:\\iCloud Drive',
+      'C:\\iCloud\\iCloudDrive',
+
+      // Other common locations
+      ...this._getAvailableDrives().flatMap(drive => [
+        `${drive}\\iCloudDrive`,
+        `${drive}\\iCloud Drive`,
+        `${drive}\\iCloud\\iCloudDrive`,
+      ]),
+    ];
+
+    for (const path of pathsToCheck) {
+      if (await this._isValidICloudPath(path)) {
         this._addPath(path, {source: 'commonPath'});
       }
     }
   }
 
-  public getAvailableDrives(): string[] {
+  private async _isValidICloudPath(path: string): Promise<boolean> {
+    try {
+      if (!fs.existsSync(path)) return false;
+
+      // Check if it's a directory
+      const stats = fs.statSync(path);
+      if (!stats.isDirectory()) return false;
+
+      // Check for iCloud markers
+      const contents = fs.readdirSync(path);
+      return contents.some(item => item === '.icloud' || item === 'desktop.ini' || this.isAppStoragePath(item));
+    } catch {
+      return false;
+    }
+  }
+
+  private async _findInRegistry(): Promise<void> {
+    const regPaths = [
+      'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\SyncRootManager',
+      'HKEY_CURRENT_USER\\Software\\Apple Inc.\\iCloud',
+      'HKEY_LOCAL_MACHINE\\SOFTWARE\\Apple Inc.\\iCloud',
+      'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Apple Inc.\\iCloud',
+    ];
+
+    for (const regPath of regPaths) {
+      try {
+        const cmd = `reg query "${regPath}" /ve 2>nul`;
+        execSync(cmd, {stdio: 'ignore'});
+
+        const output = execSync(`reg query "${regPath}" /s`, {
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'ignore'],
+        });
+
+        this._parseRegistryOutput(output);
+      } catch {
+        // Silently skip if registry key doesn't exist
+      }
+    }
+  }
+
+  private _parseRegistryOutput(output: string): void {
+    const lines = output.split('\r\n');
+    for (const line of lines) {
+      const match = line.trim().match(/REG_\w+\s+([A-Z]:\\[^"]+)/i);
+      if (!match) continue;
+
+      const path = match[1];
+      if (path.toLowerCase().includes('icloud') && fs.existsSync(path)) {
+        this._addPath(path, {source: 'registry'});
+      }
+    }
+  }
+
+  protected _classifyPath(path: string): PathType {
+    const normalizedPath = path.toLowerCase();
+    const basename = path.split('\\').pop() || '';
+
+    if (this.isAppStoragePath(path)) {
+      return PathType.APP_STORAGE;
+    }
+
+    if (normalizedPath.includes('photos')) {
+      return PathType.PHOTOS;
+    }
+
+    if (normalizedPath.includes('documents')) {
+      return PathType.DOCUMENTS;
+    }
+
+    if (normalizedPath.includes('iclouddrive') || normalizedPath.includes('icloud drive')) {
+      return PathType.ROOT;
+    }
+
+    return PathType.OTHER;
+  }
+
+  private async _discoverAppStoragePaths(): Promise<void> {
+    const rootPaths = Array.from(this.pathMap.values()).filter(
+      info => info.type === PathType.ROOT && info.exists && info.isAccessible,
+    );
+
+    for (const rootPath of rootPaths) {
+      try {
+        const entries = await fs.promises.readdir(rootPath.path, {withFileTypes: true});
+
+        for (const entry of entries) {
+          if (!entry.isDirectory()) continue;
+
+          if (this.isAppStoragePath(entry.name)) {
+            const appPath = join(rootPath.path, entry.name);
+            this._addPath(appPath, {
+              source: 'appStorage',
+              rootPath: rootPath.path,
+            });
+          }
+        }
+      } catch (error) {
+        console.debug(`Error scanning root path ${rootPath.path}:`, error);
+      }
+    }
+  }
+
+  private _getAvailableDrives(): string[] {
     const drives: string[] = [];
     try {
-      for (let i = 65; i <= 90; i++) {
-        const driver = String.fromCharCode(i) + ':';
-        // ASCII codes for A-Z
-        if (fs.existsSync(driver)) {
-          drives.push(driver);
+      for (let i = 67; i <= 90; i++) {
+        // C to Z
+        const drive = String.fromCharCode(i) + ':';
+        if (fs.existsSync(drive)) {
+          drives.push(drive);
         }
       }
     } catch (error) {
-      // Handle potential errors, such as permission issues
+      console.debug('Error getting available drives:', error);
     }
     return drives;
+  }
+
+  protected _enrichMetadata(metadata: PathMetadata, path: string, source: PathSource): PathMetadata {
+    const enriched: PathMetadata = {
+      ...metadata,
+      source,
+    };
+
+    const {appId, appName, bundleId, vendor} = this.parseAppName(path);
+    Object.assign(enriched, {appId, appName, bundleId, vendor});
+
+    return enriched;
   }
 }

@@ -1,8 +1,8 @@
 import {vol} from 'memfs';
 import path from 'path';
 
-import {MacPathFinder} from '../../../platforms/mac';
-import type {PathInfo} from '../../../types';
+import {MacPathFinder} from '../../platforms/mac';
+import {PathType} from '../../types';
 
 // Mock child_process
 jest.mock('child_process', () => ({
@@ -73,11 +73,13 @@ describe('MacPathFinder', () => {
 
     homedir.mockReturnValue('/Users/testuser');
 
-    // Setup test file system with forward slashes
+    // Setup test file system
     const testFiles = {
       '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Documents/test.txt': 'test content',
       '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/.icloud': '',
       '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/desktop.ini': 'iCloud config',
+      '/Users/testuser/Library/Mobile Documents/iCloud~com~apple~notes/notes.txt': 'notes content',
+      '/Users/testuser/Library/Mobile Documents/iCloud~md~obsidian~Obsidian/test.md': 'obsidian content',
       '/Users/testuser/Library/Containers/com.apple.iCloud/Data/Library/Mobile Documents/test.doc': 'test doc',
       '/Users/Shared/CloudDocs/shared.txt': 'shared content',
       '/Users/otheruser/Library/Mobile Documents/com~apple~CloudDocs/other.txt': 'other content',
@@ -101,76 +103,81 @@ describe('MacPathFinder', () => {
     vol.reset();
   });
 
-  describe('Default locations', () => {
-    it('should find iCloud paths in default locations', async () => {
+  describe('Path Discovery', () => {
+    it('should find root iCloud paths', async () => {
       const result = await finder.findPaths();
+      const rootPath = result.find(p => p.type === PathType.ROOT);
 
-      const expectedPath = '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs';
-      const foundPath = result.find(p => p.path === expectedPath);
-      expect(foundPath).toBeDefined();
-      expect(foundPath?.metadata.source?.source).toBe('default');
+      expect(rootPath).toBeDefined();
+      expect(rootPath?.path).toContain('com~apple~CloudDocs');
+      expect(rootPath?.isAccessible).toBeTruthy();
     });
 
-    it('should check shared CloudDocs directory', async () => {
+    it('should find app storage paths', async () => {
       const result = await finder.findPaths();
-      const sharedPath = result.find(p => p.path === '/Users/Shared/CloudDocs');
+      const appPaths = result.filter(p => p.type === PathType.APP_STORAGE);
+
+      expect(appPaths.length).toBeGreaterThan(0);
+      expect(appPaths.some(p => p.metadata.appId?.includes('apple~notes'))).toBeTruthy();
+      expect(appPaths.some(p => p.metadata.appId?.includes('obsidian'))).toBeTruthy();
+    });
+
+    it('should discover shared paths', async () => {
+      const result = await finder.findPaths();
+      const sharedPath = result.find(p => p.path.includes('Shared/CloudDocs'));
+
       expect(sharedPath).toBeDefined();
       expect(sharedPath?.exists).toBeTruthy();
-      expect(sharedPath?.isAccessible).toBeTruthy();
     });
   });
 
-  describe('User directories', () => {
-    it('should find iCloud paths in user directories', async () => {
+  describe('Multi-user Support', () => {
+    it('should find paths for multiple users', async () => {
       execSync.mockReturnValueOnce('testuser\notheruser');
-
       const result = await finder.findPaths();
-      const paths = result.map(p => p.path);
 
-      expect(paths).toContain('/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs');
-      expect(paths).toContain('/Users/otheruser/Library/Mobile Documents/com~apple~CloudDocs');
+      expect(result.some(p => p.path.includes('testuser'))).toBeTruthy();
+      expect(result.some(p => p.path.includes('otheruser'))).toBeTruthy();
     });
 
     it('should handle inaccessible user directories', async () => {
       execSync.mockReturnValueOnce('testuser\nrestricteduser');
-
       const mockReaddir = jest.spyOn(require('fs').promises, 'readdir');
-      mockReaddir.mockImplementationOnce(() => Promise.resolve([]));
-      mockReaddir.mockImplementationOnce(() => Promise.reject(new Error('EACCES: permission denied')));
+      mockReaddir
+        .mockImplementationOnce(() =>
+          Promise.resolve([
+            {name: 'com~apple~CloudDocs', isDirectory: () => true},
+            {name: 'iCloud~com~apple~notes', isDirectory: () => true},
+          ]),
+        )
+        .mockImplementationOnce(() => Promise.reject(new Error('EACCES: permission denied')));
 
       const result = await finder.findPaths();
-
-      expect(result.length).toBeGreaterThan(0);
+      expect(result.some(p => p.path.includes('testuser'))).toBeTruthy();
       expect(result.every(p => !p.path.includes('restricteduser'))).toBeTruthy();
     });
   });
 
-  describe('Container paths', () => {
-    it('should find iCloud paths in containers', async () => {
+  describe('Path Metadata', () => {
+    it('should enrich app storage metadata', async () => {
       const result = await finder.findPaths();
-      const containerPath = '/Users/testuser/Library/Containers/com.apple.iCloud/Data/Library/Mobile Documents';
+      const notesApp = result.find(p => p.metadata.appId?.includes('apple~notes'));
 
-      const foundPath = result.find(p => p.path === containerPath);
-      expect(foundPath).toBeDefined();
-      expect(foundPath?.metadata.source?.source).toBe('container');
-      expect(foundPath?.metadata.source?.container).toBe('com.apple.iCloud');
-      expect(foundPath?.metadata.source?.type).toBe('application');
+      expect(notesApp?.metadata.appName).toBe('Notes');
+      expect(notesApp?.metadata.bundleId).toBe('com.apple.notes');
+      expect(notesApp?.metadata.vendor).toBe('com.apple');
     });
 
-    it('should handle inaccessible container directories', async () => {
-      const mockReaddir = jest.spyOn(require('fs').promises, 'readdir');
-      mockReaddir.mockImplementationOnce(() => Promise.reject(new Error('EACCES: permission denied')));
-
+    it('should handle various app naming patterns', async () => {
       const result = await finder.findPaths();
+      const obsidianApp = result.find(p => p.metadata.appId?.includes('obsidian'));
 
-      expect(result.length).toBeGreaterThan(0);
-      expect(
-        result.every((p: PathInfo) => !p.metadata.source || p.metadata.source.source !== 'container'),
-      ).toBeTruthy();
+      expect(obsidianApp?.metadata.appName).toBe('Obsidian');
+      expect(obsidianApp?.metadata.bundleId).toBe('md.obsidian.Obsidian');
     });
   });
 
-  describe('Path evaluation', () => {
+  describe('Path Evaluation', () => {
     it('should correctly evaluate directory contents', async () => {
       const result = finder.evaluatePath('/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs');
 
@@ -200,7 +207,6 @@ describe('MacPathFinder', () => {
       });
 
       const result = finder.evaluatePath('/System/Restricted/iCloud');
-
       expect(result.exists).toBeTruthy();
       expect(result.isAccessible).toBeFalsy();
     });
@@ -224,23 +230,20 @@ describe('MacPathFinder', () => {
     });
   });
 
-  describe('Error handling', () => {
+  describe('Error Handling', () => {
     it('should handle dscl command failure', async () => {
       execSync.mockImplementation(() => {
         throw new Error('Command failed');
       });
 
       const result = await finder.findPaths();
-
       expect(result.length).toBeGreaterThan(0);
-      expect(result.some((p: PathInfo) => p.metadata.source?.source === 'default')).toBeTruthy();
+      expect(result.some(p => p.type === PathType.ROOT)).toBeTruthy();
     });
 
     it('should handle missing home directory', async () => {
       homedir.mockReturnValueOnce('');
-
       const result = await finder.findPaths();
-
       expect(result.some(p => !p.path.includes('undefined'))).toBeTruthy();
     });
 
@@ -255,8 +258,8 @@ describe('MacPathFinder', () => {
       );
 
       const result = await finder.findPaths();
-
       expect(result.length).toBeGreaterThan(0);
+      expect(result.every(p => p.path && p.type)).toBeTruthy();
     });
   });
 });

@@ -20,7 +20,7 @@
   "engines": {
     "node": ">=16"
   },
-  "author": "TY",
+  "author": "hexxspark <hexxspark@gmail.com>",
   "license": "Apache-2.0",
   "publishConfig": {
     "access": "public"
@@ -31,10 +31,16 @@
     "test": "pnpm run jest",
     "jest": "jest --runInBand --coverage",
     "cli": "pnpm build && node dist/cli.cjs",
-    "release": "release-it"
+    "release": "release-it",
+    "lint": "pnpm prettier:check && pnpm eslint",
+    "lint:fix": "pnpm prettier:fix && pnpm eslint:fix",
+    "eslint": "eslint",
+    "eslint:fix": "pnpm eslint --fix",
+    "prettier:cli": "prettier \"**/*.ts\" \"**/*.js\" \"**/*.mjs\" \"**/*.md\"",
+    "prettier:check": "pnpm prettier:cli --check",
+    "prettier:fix": "pnpm prettier:cli --write"
   },
   "dependencies": {
-    "chalk": "^4.x"
   },
   "devDependencies": {
     "@jest/console": "^29.7.0",

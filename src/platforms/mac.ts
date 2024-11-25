@@ -1,16 +1,18 @@
 import {execSync} from 'child_process';
-import * as fs from 'fs'; // 导入 fs 模块
+import * as fs from 'fs';
 import {homedir} from 'os';
 import {join} from 'path';
 
-import {BasePathFinder} from '../base'; // 确保导入路径正确
-import {PathInfo} from '../types';
+import {BasePathFinder} from '../base';
+import {PathInfo, PathMetadata, PathSource, PathType} from '../types';
 
 export class MacPathFinder extends BasePathFinder {
+  private readonly MOBILE_DOCUMENTS_PATH = 'Library/Mobile Documents';
+  private readonly ICLOUD_ROOT_DIR = 'com~apple~CloudDocs';
+
   async findPaths(): Promise<PathInfo[]> {
     try {
-      await this._findInDefaultLocations();
-      await this._findInUserDirectories();
+      await this._findUserPaths();
       await this._checkContainerPaths();
 
       return Array.from(this.pathMap.values())
@@ -21,44 +23,114 @@ export class MacPathFinder extends BasePathFinder {
     }
   }
 
-  private async _findInDefaultLocations(): Promise<void> {
-    const home = homedir();
+  protected _classifyPath(path: string): PathType {
+    const basename = path.split('/').pop() || '';
 
-    const defaultPaths = [
-      join(home, 'Library/Mobile Documents/com~apple~CloudDocs'),
-      join(home, 'Library/Mobile Documents/com~apple~CloudDocs/Documents'),
-      '/Users/Shared/CloudDocs',
-    ];
+    if (basename === this.ICLOUD_ROOT_DIR) {
+      return PathType.ROOT;
+    }
 
-    for (const path of defaultPaths) {
-      this._addPath(path, {source: 'default'});
+    if (this.isAppStoragePath(path)) {
+      return PathType.APP_STORAGE;
+    }
+
+    if (basename.toLowerCase().includes('photos')) {
+      return PathType.PHOTOS;
+    }
+
+    if (basename.toLowerCase().includes('documents')) {
+      return PathType.DOCUMENTS;
+    }
+
+    return PathType.OTHER;
+  }
+
+  protected _enrichMetadata(metadata: PathMetadata, path: string, source: PathSource): PathMetadata {
+    const enriched: PathMetadata = {
+      ...metadata,
+      source,
+    };
+
+    const {appId, appName, bundleId, vendor} = this.parseAppName(path);
+    Object.assign(enriched, {appId, appName, bundleId, vendor});
+
+    return enriched;
+  }
+
+  private async _findUserPaths(): Promise<void> {
+    try {
+      const currentHome = homedir();
+      if (currentHome) {
+        await this._checkUserPath(currentHome);
+      }
+
+      const users = await this._getSystemUsers();
+      for (const user of users) {
+        const userHome = `/Users/${user}`;
+        if (userHome !== currentHome) {
+          await this._checkUserPath(userHome);
+        }
+      }
+
+      const sharedPath = '/Users/Shared/CloudDocs';
+      if (fs.existsSync(sharedPath)) {
+        this._addPath(sharedPath, {
+          source: 'shared',
+          directoryType: 'shared',
+        });
+      }
+    } catch (error) {
+      console.debug('Error finding user paths:', error);
     }
   }
 
-  private async _findInUserDirectories(): Promise<void> {
+  private async _getSystemUsers(): Promise<string[]> {
     try {
-      const usersOutput = execSync('dscl . -list /Users | grep -v "^_"', {encoding: 'utf8'}).trim().split('\n');
+      const cmd = 'dscl . -list /Users | grep -v "^_"';
+      const output = execSync(cmd, {encoding: 'utf8'});
+      return (output || '').trim().split('\n').filter(Boolean);
+    } catch (error) {
+      console.debug('Error getting system users:', error);
+      return [];
+    }
+  }
 
-      for (const user of usersOutput) {
-        try {
-          const userPath = `/Users/${user}/Library/Mobile Documents`;
-          const entries = await fs.promises.readdir(userPath, {withFileTypes: true});
+  private async _checkUserPath(userHome: string): Promise<void> {
+    try {
+      const mobileDocs = join(userHome, this.MOBILE_DOCUMENTS_PATH);
+      const entries = await fs.promises.readdir(mobileDocs, {withFileTypes: true});
+      const username = userHome.split('/').pop() || '';
 
-          for (const entry of entries) {
-            if (entry.isDirectory() && (entry.name === 'com~apple~CloudDocs' || entry.name.includes('iCloud'))) {
-              this._addPath(join(userPath, entry.name), {
-                source: 'userDirectory',
-                user,
-                directoryType: entry.name,
-              });
-            }
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+
+        const fullPath = join(mobileDocs, entry.name);
+
+        if (entry.name === this.ICLOUD_ROOT_DIR) {
+          this._addPath(fullPath, {
+            source: 'userDirectory',
+            user: username,
+            directoryType: 'root',
+          });
+
+          const docsPath = join(fullPath, 'Documents');
+          if (fs.existsSync(docsPath)) {
+            this._addPath(docsPath, {
+              source: 'userDirectory',
+              user: username,
+              directoryType: 'documents',
+            });
           }
-        } catch {
-          // Skip inaccessible user directories
+        } else if (this.isAppStoragePath(entry.name)) {
+          this._addPath(fullPath, {
+            source: 'userDirectory',
+            user: username,
+            directoryType: 'appStorage',
+          });
         }
       }
-    } catch {
-      // Skip if user listing fails
+    } catch (error) {
+      console.debug(`Error checking user path ${userHome}:`, error);
     }
   }
 
@@ -78,8 +150,6 @@ export class MacPathFinder extends BasePathFinder {
           });
         }
       }
-    } catch {
-      // Skip if containers directory is inaccessible
-    }
+    } catch {}
   }
 }

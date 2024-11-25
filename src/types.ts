@@ -5,12 +5,27 @@ export interface RegistrySource {
   valueName: string;
 }
 
+export enum PathSourceType {
+  COMMON = 'common',
+  REGISTRY = 'registry',
+  USER_HOME = 'user_home',
+  SYSTEM = 'system',
+}
+
 export interface PathSource {
   source: string;
   [key: string]: any;
 }
 
 export type PathStats = Pick<Stats, 'mode' | 'uid' | 'gid' | 'size' | 'mtime'>;
+
+export enum PathType {
+  ROOT = 'root',
+  APP_STORAGE = 'app_storage',
+  PHOTOS = 'photos',
+  DOCUMENTS = 'documents',
+  OTHER = 'other',
+}
 
 export interface PathMetadata {
   contents?: string[];
@@ -22,6 +37,10 @@ export interface PathMetadata {
   source?: PathSource;
   sources?: PathSource[];
   stats?: PathStats;
+  appId?: string;
+  appName?: string;
+  bundleId?: string;
+  vendor?: string;
   [key: string]: any;
 }
 
@@ -30,7 +49,15 @@ export interface PathInfo {
   score: number;
   exists: boolean;
   isAccessible: boolean;
+  type: PathType;
   metadata: PathMetadata;
+}
+
+export interface SearchOptions {
+  types?: PathType[];
+  includeInaccessible?: boolean;
+  minScore?: number;
+  appNamePattern?: string;
 }
 
 export interface SearchResult {
