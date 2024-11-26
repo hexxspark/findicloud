@@ -26,7 +26,8 @@
     "access": "public"
   },
   "scripts": {
-    "build": "pnpm clean && tsup",
+    "build": "tsup",
+    "build:full": "pnpm clean && pnpm build",
     "clean": "del-cli dist *.tsbuildinfo",
     "test": "pnpm run jest",
     "jest": "jest --runInBand --coverage",
@@ -40,7 +41,6 @@
     "prettier:check": "pnpm prettier:cli --check",
     "prettier:fix": "pnpm prettier:cli --write"
   },
-  "dependencies": {},
   "devDependencies": {
     "@jest/console": "^29.7.0",
     "@types/jest": "^29.5.14",
