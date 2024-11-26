@@ -36,7 +36,7 @@
     "lint:fix": "pnpm prettier:fix && pnpm eslint:fix",
     "eslint": "eslint",
     "eslint:fix": "pnpm eslint --fix",
-    "prettier:cli": "prettier \"**/*.ts\" \"**/*.js\" \"**/*.mjs\" \"**/*.md\"",
+    "prettier:cli": "prettier \"**/*.ts\" \"**/*.md\"",
     "prettier:check": "pnpm prettier:cli --check",
     "prettier:fix": "pnpm prettier:cli --write"
   },

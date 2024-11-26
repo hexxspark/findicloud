@@ -1,8 +1,6 @@
 .github/
 /coverage
-packages/*/dist
-packages/*/release
-examples/*/dist
+dist
 *.json
 CHANGELOG.md
 *.yml

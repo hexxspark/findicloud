@@ -67,8 +67,13 @@ export class MacPathFinder extends BasePathFinder {
       const users = await this._getSystemUsers();
       for (const user of users) {
         const userHome = `/Users/${user}`;
-        if (userHome !== currentHome) {
-          await this._checkUserPath(userHome);
+        if (userHome !== currentHome && fs.existsSync(userHome)) {
+          // Check if user home exists
+          const mobileDocsPath = join(userHome, this.MOBILE_DOCUMENTS_PATH);
+          if (fs.existsSync(mobileDocsPath)) {
+            // Check if Mobile Documents path exists
+            await this._checkUserPath(userHome);
+          }
         }
       }
 
@@ -97,14 +102,14 @@ export class MacPathFinder extends BasePathFinder {
 
   private async _checkUserPath(userHome: string): Promise<void> {
     try {
-      const mobileDocs = join(userHome, this.MOBILE_DOCUMENTS_PATH);
-      const entries = await fs.promises.readdir(mobileDocs, {withFileTypes: true});
-      const username = userHome.split('/').pop() || '';
+      const mobileDocs: string = join(userHome, this.MOBILE_DOCUMENTS_PATH);
+      const entries: fs.Dirent[] = await fs.promises.readdir(mobileDocs, {withFileTypes: true});
+      const username: string = userHome.split('/').pop() || '';
 
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
 
-        const fullPath = join(mobileDocs, entry.name);
+        const fullPath: string = join(mobileDocs, entry.name);
 
         if (entry.name === this.ICLOUD_ROOT_DIR) {
           this._addPath(fullPath, {
@@ -113,7 +118,7 @@ export class MacPathFinder extends BasePathFinder {
             directoryType: 'root',
           });
 
-          const docsPath = join(fullPath, 'Documents');
+          const docsPath: string = join(fullPath, 'Documents');
           if (fs.existsSync(docsPath)) {
             this._addPath(docsPath, {
               source: 'userDirectory',
