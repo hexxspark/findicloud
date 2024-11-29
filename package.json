@@ -21,6 +21,14 @@
     "node": ">=16"
   },
   "author": "hexxspark <hexxspark@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hexxspark/findicloud"
+  },
+  "bugs": {
+    "url": "https://github.com/hexxspark/findicloud/issues",
+    "email": "hexxspark@gmail.com"
+  },
   "license": "Apache-2.0",
   "publishConfig": {
     "access": "public"
