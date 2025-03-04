@@ -1,49 +1,48 @@
-# FindiCloud
+# iCloudy
 
-FindiCloud is a Node.js library that helps you locate the local path of iCloud Drive on macOS, Windows, and Linux. It
-automatically detects the operating system and utilizes the appropriate path finder for each platform.
+A modern CLI tool for managing your iCloud Drive files and directories. Currently supports locating iCloud paths on macOS and Windows.
 
 ## Features
 
 - **Cross-Platform Support**: Automatically detects whether the operating system is macOS, Windows, or Linux and uses
   the corresponding path finder.
-- **Path Information**: Provides detailed information about the found paths, including accessibility, metadata, and
+- **Path Information**: Provides detailed information about the local iCloud paths, including accessibility, metadata, and
   existence.
-- **Easy to Use**: Simple API to find iCloud Drive paths.
+- **Easy to Use**: Simple API to locate iCloud Drive paths.
 
 ## Installation
 
-To install the package, use `pnpm`, `npm`, or `yarn`:
-
 ```bash
-pnpm install findicloud
-```
-
-or
-
-```bash
-npm install findicloud
-```
-
-or
-
-```bash
-yarn add findicloud
+npm install -g icloudy
 ```
 
 ## Usage
 
-Here is a simple example of how to use FindiCloud:
+```bash
+# Show all local iCloud paths
+icloudy path
+
+# Show specific app storage location
+icloudy path -a "notes"
+
+# Show only root paths
+icloudy path -t root
+
+# Output in JSON format
+icloudy path --json
+```
+
+Here is a simple example of how to use iCloudy in your code:
 
 ```javascript
-import {findICloudPaths} from 'findicloud';
+import {findICloudPaths} from 'icloudy';
 
 async function main() {
   try {
     const paths = await findICloudPaths();
-    console.log('Found iCloud Drive paths:', paths);
+    console.log('Local iCloud Drive paths:', paths);
   } catch (error) {
-    console.error('Error finding iCloud paths:', error);
+    console.error('Error locating iCloud paths:', error);
   }
 }
 
@@ -55,7 +54,7 @@ main();
 You can also handle different platforms by checking the operating system:
 
 ```javascript
-import {findICloudPaths} from 'findicloud';
+import {findICloudPaths} from 'icloudy';
 import os from 'os';
 
 async function main() {

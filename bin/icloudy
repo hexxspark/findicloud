@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import {run} from '../dist/cli.cjs';
+const {run} = require('../dist/cli.cjs');
 
 run().catch((error) => {
   console.error('Unhandled error:', error);

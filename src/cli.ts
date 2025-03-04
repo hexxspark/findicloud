@@ -79,29 +79,32 @@ export async function run(args: string[] = process.argv.slice(2)): Promise<void>
   try {
     if (options.showHelp) {
       console.log(`
-Usage: findicloud [options]
+Usage: icloudy [command] [options]
 
+Commands:
+  path [options]    Show local iCloud Drive paths (default command)
+  
 Options:
   -t, --type                  Filter by path type (root|app_storage|photos|documents|other)
   -a, --app                   Search for specific app (e.g., "notes", "1password")
   -m, --min-score             Minimum score threshold
   -i, --include-inaccessible  Include inaccessible paths
   -j, --json                  Output in JSON format
-  -n, --no-color              Disable colorized output
-  -s, --silent                Suppress all prompts
-  -h, --help                  Display help information
+  -n, --no-color             Disable colorized output
+  -s, --silent               Suppress all prompts
+  -h, --help                 Display help information
 
 Examples:
-  findicloud                          # List all iCloud paths
-  findicloud -t root                  # Only show root paths
-  findicloud -a notes                 # Search for notes apps
-  findicloud -t app_storage -m 10     # Show app storage paths with min score 10
+  icloudy path                        # List all iCloud paths
+  icloudy path -t root               # Only show root paths
+  icloudy path -a notes             # Show Notes app storage location
+  icloudy path -t app_storage -m 10  # Show app storage paths with min score 10
 `);
       process.exit(0);
     }
 
     if (!options.silent) {
-      console.log('Finding iCloud Drive paths...');
+      console.log('Locating iCloud Drive paths...');
     }
 
     const paths = await findICloudDrivePaths(options);
