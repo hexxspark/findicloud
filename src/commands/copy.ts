@@ -1,5 +1,6 @@
 import {FileCopier} from '../copy';
 import {CommandOptions, PathType} from '../types';
+import {colors} from '../utils/colors';
 import {BaseCommand} from './base';
 
 export class CopyCommand extends BaseCommand {
@@ -14,6 +15,10 @@ export class CopyCommand extends BaseCommand {
 
     if (!options.targetType) {
       throw new Error('Target type is required');
+    }
+
+    if (!options.silent) {
+      console.log(colors.info('Starting copy operation...'));
     }
 
     const fileCopier = new FileCopier();
@@ -32,9 +37,19 @@ export class CopyCommand extends BaseCommand {
     }
 
     if (!options.silent) {
-      console.log(`Successfully copied ${result.copiedFiles.length} files to: ${result.targetPath}`);
-      if (result.failedFiles.length > 0) {
-        console.warn(`Failed to copy ${result.failedFiles.length} files`);
+      if (options.dryRun) {
+        console.log(colors.info('Dry run completed. Would copy:'));
+        result.copiedFiles.forEach((file, index) => {
+          console.log(colors.formatProgress(index + 1, result.copiedFiles.length, file));
+        });
+      } else {
+        console.log(colors.formatSuccess(`Successfully copied ${result.copiedFiles.length} files to: ${result.targetPath}`));
+        if (result.failedFiles.length > 0) {
+          console.warn(colors.formatWarning(`Failed to copy ${result.failedFiles.length} files`));
+          result.failedFiles.forEach(file => {
+            console.warn(colors.warning(`  - ${file}`));
+          });
+        }
       }
     }
   }
@@ -50,7 +65,9 @@ Options:
   -r, --recursive            Copy directories recursively
   -f, --force               Overwrite existing files
   -d, --dry-run            Show what would be copied without actually copying
+  -n, --no-color           Disable colorized output
   -s, --silent             Suppress output messages
+  -h, --help               Display help information
 
 Examples:
   icloudy copy ./documents -t documents
