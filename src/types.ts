@@ -66,3 +66,17 @@ export interface SearchResult {
   paths: PathInfo[];
   error?: string;
 }
+
+export interface CommandOptions extends SearchOptions {
+  showHelp: boolean;
+  jsonOutput: boolean;
+  noColor: boolean;
+  silent: boolean;
+  source?: string;
+  targetType?: PathType;
+  targetApp?: string;
+  pattern?: string;
+  recursive?: boolean;
+  overwrite?: boolean;
+  dryRun?: boolean;
+}

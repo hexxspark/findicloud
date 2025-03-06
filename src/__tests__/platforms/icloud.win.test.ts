@@ -1,6 +1,4 @@
-import * as fs from 'fs';
 import {vol} from 'memfs';
-import path from 'path';
 
 import {WindowsPathFinder} from '../../platforms/win';
 import {PathType} from '../../types';

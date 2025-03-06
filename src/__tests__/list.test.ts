@@ -1,7 +1,7 @@
 import {vol} from 'memfs';
 import path from 'path';
 
-import {ICloudDriveFinder} from '../finder';
+import {DriveLister as DriveLister} from '../list';
 import {PathType} from '../types';
 
 const mockExecSync = jest.fn();
@@ -50,8 +50,8 @@ jest.mock('path', () => {
 
 const os = require('os');
 
-describe('ICloudDriveFinder', () => {
-  let finder: ICloudDriveFinder;
+describe('ICloudDriveLister', () => {
+  let lister: DriveLister;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -79,11 +79,11 @@ describe('ICloudDriveFinder', () => {
           '    UserSyncRootPath    REG_SZ    C:\\Users\\TestUser\\iCloudDrive\r\n',
       );
 
-      finder = new ICloudDriveFinder();
+      lister = new DriveLister();
     });
 
     it('should find paths on Windows', async () => {
-      const paths = await finder.findPaths();
+      const paths = await lister.findPaths();
       expect(paths).toContainEqual(
         expect.objectContaining({
           path: path.normalize('C:\\Users\\TestUser\\iCloudDrive'),
@@ -93,7 +93,7 @@ describe('ICloudDriveFinder', () => {
     });
 
     it('should find app storage paths', async () => {
-      const paths = await finder.findPaths();
+      const paths = await lister.findPaths();
       const appPaths = paths.filter(p => p.type === PathType.APP_STORAGE);
       expect(appPaths).toContainEqual(
         expect.objectContaining({
@@ -114,7 +114,6 @@ describe('ICloudDriveFinder', () => {
 
       // Setup macOS test files
       const testFiles = {
-        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/test.txt': 'test content',
         '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/.icloud': '',
         '/Users/testuser/Library/Mobile Documents/iCloud~com~apple~notes/notes.txt': 'notes content',
         '/Users/otheruser/Library/Mobile Documents/com~apple~CloudDocs/other.txt': 'other content',
@@ -122,14 +121,11 @@ describe('ICloudDriveFinder', () => {
 
       vol.fromJSON(testFiles);
 
-      // Mock user list command
-      mockExecSync.mockReturnValue('testuser\notheruser\n');
-
-      finder = new ICloudDriveFinder();
+      lister = new DriveLister();
     });
 
     it('should find paths on macOS', async () => {
-      const paths = await finder.findPaths();
+      const paths = await lister.findPaths();
       expect(paths).toContainEqual(
         expect.objectContaining({
           path: '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs',
@@ -139,7 +135,7 @@ describe('ICloudDriveFinder', () => {
     });
 
     it('should find app storage paths', async () => {
-      const paths = await finder.findPaths();
+      const paths = await lister.findPaths();
       const appPaths = paths.filter(p => p.type === PathType.APP_STORAGE);
       expect(appPaths).toContainEqual(
         expect.objectContaining({
@@ -153,10 +149,13 @@ describe('ICloudDriveFinder', () => {
     });
   });
 
-  describe('Platform Support', () => {
-    it('should throw error for unsupported platforms', () => {
+  describe('Unsupported Platform', () => {
+    beforeEach(() => {
       os.platform.mockReturnValue('linux');
-      expect(() => new ICloudDriveFinder()).toThrow('Unsupported platform: linux');
+    });
+
+    it('should throw error for unsupported platform', () => {
+      expect(() => new DriveLister()).toThrow('Unsupported platform: linux');
     });
   });
 
@@ -164,6 +163,7 @@ describe('ICloudDriveFinder', () => {
     beforeEach(() => {
       os.platform.mockReturnValue('win32');
       os.homedir.mockReturnValue('C:\\Users\\TestUser');
+      lister = new DriveLister();
     });
 
     it('should handle registry access errors', async () => {
@@ -171,19 +171,19 @@ describe('ICloudDriveFinder', () => {
         throw new Error('Registry access denied');
       });
 
-      const paths = await finder.findPaths();
+      const paths = await lister.findPaths();
       expect(Array.isArray(paths)).toBeTruthy();
     });
 
     it('should handle missing user profile', async () => {
       delete process.env.USERPROFILE;
-      const paths = await finder.findPaths();
+      const paths = await lister.findPaths();
       expect(Array.isArray(paths)).toBeTruthy();
     });
 
     it('should handle inaccessible directories', async () => {
       vol.mkdirSync('C:\\Restricted');
-      const paths = await finder.findPaths();
+      const paths = await lister.findPaths();
       expect(Array.isArray(paths)).toBeTruthy();
     });
   });

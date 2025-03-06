@@ -1,13 +1,14 @@
 # iCloudy
 
-A modern CLI tool for managing your iCloud Drive files and directories. Currently supports locating iCloud paths on macOS and Windows.
+A modern CLI tool for managing your iCloud Drive files and directories. Currently supports locating iCloud paths on
+macOS and Windows.
 
 ## Features
 
 - **Cross-Platform Support**: Automatically detects whether the operating system is macOS, Windows, or Linux and uses
   the corresponding path finder.
-- **Path Information**: Provides detailed information about the local iCloud paths, including accessibility, metadata, and
-  existence.
+- **Path Information**: Provides detailed information about the local iCloud paths, including accessibility, metadata,
+  and existence.
 - **Easy to Use**: Simple API to locate iCloud Drive paths.
 
 ## Installation

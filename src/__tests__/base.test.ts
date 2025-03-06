@@ -1,6 +1,4 @@
-import * as fs from 'fs';
 import {vol} from 'memfs';
-import path from 'path';
 
 import {BasePathFinder} from '../base';
 import {PathMetadata, PathSource, PathType} from '../types';

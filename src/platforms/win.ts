@@ -115,7 +115,6 @@ export class WindowsPathFinder extends BasePathFinder {
 
   protected _classifyPath(path: string): PathType {
     const normalizedPath = path.toLowerCase();
-    const basename = path.split('\\').pop() || '';
 
     if (this.isAppStoragePath(path)) {
       return PathType.APP_STORAGE;

@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-import {findICloudDrivePaths} from './finder';
+
+import {BaseCommand} from './commands/base';
+import {CopyCommand} from './commands/copy';
+import {ListCommand} from './commands/list';
 import {PathType, SearchOptions} from './types';
 
 interface CliOptions extends SearchOptions {
@@ -7,6 +10,13 @@ interface CliOptions extends SearchOptions {
   jsonOutput: boolean;
   noColor: boolean;
   silent: boolean;
+  source?: string;
+  targetType?: PathType;
+  targetApp?: string;
+  pattern?: string;
+  recursive?: boolean;
+  overwrite?: boolean;
+  dryRun?: boolean;
 }
 
 export function parseArgs(args: string[]): CliOptions {
@@ -63,6 +73,30 @@ export function parseArgs(args: string[]): CliOptions {
       case '-h':
         options.showHelp = true;
         break;
+      case '--source':
+        options.source = args[++i];
+        break;
+      case '--target-type':
+        options.targetType = args[++i] as PathType;
+        break;
+      case '--target-app':
+        options.targetApp = args[++i];
+        break;
+      case '--pattern':
+        options.pattern = args[++i];
+        break;
+      case '--recursive':
+      case '-r':
+        options.recursive = true;
+        break;
+      case '--force':
+      case '-f':
+        options.overwrite = true;
+        break;
+      case '--dry-run':
+      case '-d':
+        options.dryRun = true;
+        break;
     }
     i++;
   }
@@ -74,77 +108,91 @@ export function parseArgs(args: string[]): CliOptions {
   return options;
 }
 
-export async function run(args: string[] = process.argv.slice(2)): Promise<void> {
-  const options = parseArgs(args);
-  try {
-    if (options.showHelp) {
-      console.log(`
+export class CLI {
+  private commands: Map<string, BaseCommand> = new Map();
+  private aliases: Map<string, string> = new Map();
+
+  constructor() {
+    // 注册命令
+    this.registerCommand(new ListCommand());
+    this.registerCommand(new CopyCommand());
+  }
+
+  registerCommand(command: BaseCommand) {
+    this.commands.set(command.name, command);
+    // 注册别名
+    if (command.aliases) {
+      for (const alias of command.aliases) {
+        this.aliases.set(alias, command.name);
+      }
+    }
+  }
+
+  private findCommand(name: string): BaseCommand | undefined {
+    // 直接匹配命令名
+    let command = this.commands.get(name);
+    if (!command) {
+      // 尝试通过别名查找
+      const mainCommandName = this.aliases.get(name);
+      if (mainCommandName) {
+        command = this.commands.get(mainCommandName);
+      }
+    }
+    return command;
+  }
+
+  async run(args: string[] = process.argv.slice(2)): Promise<void> {
+    let options: CliOptions | undefined;
+    try {
+      // 检查第一个参数是否为 --help
+      if (args[0] === '--help') {
+        this.showHelp();
+        process.exit(0);
+        return;
+      }
+
+      const commandName = args[0] || 'list'; // 默认使用 list 命令
+      const command = this.findCommand(commandName);
+
+      if (!command) {
+        console.error(`Unknown command: ${commandName}`);
+        process.exit(1);
+        return;
+      }
+
+      options = parseArgs(args.slice(1));
+      if (options.showHelp) {
+        console.log(command.getHelp());
+        process.exit(0);
+        return;
+      }
+
+      await command.execute(options);
+    } catch (error) {
+      if (!options?.silent) {
+        console.error('Error:', error instanceof Error ? error.message : String(error));
+      }
+      process.exit(1);
+    }
+  }
+
+  private showHelp(): void {
+    console.log(`
 Usage: icloudy [command] [options]
 
 Commands:
-  path [options]    Show local iCloud Drive paths (default command)
-  
-Options:
-  -t, --type                  Filter by path type (root|app_storage|photos|documents|other)
-  -a, --app                   Search for specific app (e.g., "notes", "1password")
-  -m, --min-score             Minimum score threshold
-  -i, --include-inaccessible  Include inaccessible paths
-  -j, --json                  Output in JSON format
-  -n, --no-color             Disable colorized output
-  -s, --silent               Suppress all prompts
-  -h, --help                 Display help information
+  ls [options]     List iCloud Drive paths and files (default command)
+  cp [options]     Copy files to iCloud Drive
 
-Examples:
-  icloudy path                        # List all iCloud paths
-  icloudy path -t root               # Only show root paths
-  icloudy path -a notes             # Show Notes app storage location
-  icloudy path -t app_storage -m 10  # Show app storage paths with min score 10
-`);
-      process.exit(0);
-    }
-
-    if (!options.silent) {
-      console.log('Locating iCloud Drive paths...');
-    }
-
-    const paths = await findICloudDrivePaths(options);
-
-    if (paths.length === 0) {
-      if (!options.silent) {
-        console.log('No iCloud Drive paths found.');
-      }
-      process.exit(0);
-    }
-
-    if (options.jsonOutput) {
-      console.log(JSON.stringify(paths, null, 2));
-    } else {
-      paths.forEach(path => {
-        const accessibility = path.isAccessible ? 'Accessible' : 'Not Accessible';
-        const type = path.type;
-
-        let details = '';
-        if (path.type === PathType.APP_STORAGE && path.metadata.appName) {
-          details = ` (${path.metadata.appName})`;
-          if (path.metadata.bundleId) {
-            details += ` [${path.metadata.bundleId}]`;
-          }
-        }
-
-        console.log(`- ${path.path} [${type}${details}] (Score: ${path.score}, ${accessibility})`);
-      });
-    }
-  } catch (error) {
-    if (!options.silent) {
-      console.error('Error:', error instanceof Error ? error.message : String(error));
-    }
-    process.exit(1);
+Use 'icloudy <command> --help' for more information about a command.
+    `);
   }
 }
 
 // Only run if called directly
 if (require.main === module) {
-  run().catch(error => {
+  const cli = new CLI();
+  cli.run().catch(error => {
     console.error('Unhandled error:', error);
     process.exit(1);
   });

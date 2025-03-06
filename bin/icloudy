@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
-const {run} = require('../dist/cli.cjs');
+const {CLI} = require('../dist/cli.cjs');
 
-run().catch((error) => {
+const cli = new CLI();
+cli.run().catch((error) => {
   console.error('Unhandled error:', error);
   process.exit(1);
 });

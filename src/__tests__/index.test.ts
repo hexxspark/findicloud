@@ -1,9 +1,9 @@
-import {findICloudDrivePaths} from '../index';
+import {findDrivePaths} from '../index';
 import {PathType} from '../types';
 
 describe('Index Exports', () => {
   it('should export findICloudDrivePaths function', () => {
-    expect(typeof findICloudDrivePaths).toBe('function');
+    expect(typeof findDrivePaths).toBe('function');
   });
 
   it('should handle unsupported platforms', async () => {
@@ -15,7 +15,7 @@ describe('Index Exports', () => {
     });
 
     try {
-      await expect(findICloudDrivePaths()).rejects.toThrow('Unsupported platform');
+      await expect(findDrivePaths()).rejects.toThrow('Unsupported platform');
     } finally {
       // Restore original platform
       Object.defineProperty(process, 'platform', {
@@ -34,7 +34,7 @@ describe('Index Exports', () => {
     });
 
     try {
-      const result = await findICloudDrivePaths({
+      const result = await findDrivePaths({
         types: [PathType.ROOT],
         includeInaccessible: false,
         minScore: 10,

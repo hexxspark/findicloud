@@ -1,26 +1,18 @@
-import {parseArgs, run} from '../cli';
-import {findICloudDrivePaths} from '../finder';
+import {CLI, parseArgs} from '../cli';
+import {findDrivePaths} from '../list';
 import {PathInfo, PathType} from '../types';
 
-jest.mock('../finder', () => ({
-  findICloudDrivePaths: jest.fn(),
+jest.mock('../list', () => ({
+  findDrivePaths: jest.fn(),
 }));
 
-const mockFindPaths = findICloudDrivePaths as jest.MockedFunction<typeof findICloudDrivePaths>;
+const mockFindPaths = findDrivePaths as jest.MockedFunction<typeof findDrivePaths>;
 
 describe('CLI', () => {
   let mockConsoleLog: jest.SpyInstance;
   let mockConsoleError: jest.SpyInstance;
   let mockExit: jest.SpyInstance;
-
-  const mockPath: PathInfo = {
-    path: '/test/path',
-    type: PathType.ROOT,
-    score: 100,
-    exists: true,
-    isAccessible: true,
-    metadata: {},
-  };
+  let cli: CLI;
 
   const mockAppPath: PathInfo = {
     path: '/test/app/path',
@@ -38,6 +30,7 @@ describe('CLI', () => {
     mockConsoleLog = jest.spyOn(console, 'log').mockImplementation();
     mockConsoleError = jest.spyOn(console, 'error').mockImplementation();
     mockExit = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    cli = new CLI();
   });
 
   afterEach(() => {
@@ -64,36 +57,42 @@ describe('CLI', () => {
 
   describe('Main Execution', () => {
     it('should show help text', async () => {
-      await run(['--help']);
+      await cli.run(['--help']);
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Usage:'));
       expect(mockExit).toHaveBeenCalledWith(0);
     });
 
     it('should handle no paths found', async () => {
       mockFindPaths.mockResolvedValueOnce([]);
-      await run([]);
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('No iCloud Drive paths found'));
+      await cli.run(['ls']);
+      expect(mockConsoleLog).toHaveBeenCalledWith('No iCloud Drive paths found.');
       expect(mockExit).toHaveBeenCalledWith(0);
     });
 
     it('should format app storage paths', async () => {
       mockFindPaths.mockResolvedValueOnce([mockAppPath]);
-      await run([]);
+      await cli.run(['ls']);
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining(mockAppPath.metadata.appName!));
     });
 
     it('should handle errors', async () => {
       mockFindPaths.mockRejectedValueOnce(new Error('Test error'));
-      await run([]);
+      await cli.run(['ls']);
       expect(mockConsoleError).toHaveBeenCalledWith('Error:', 'Test error');
       expect(mockExit).toHaveBeenCalledWith(1);
     });
 
     it('should respect silent mode', async () => {
       mockFindPaths.mockResolvedValueOnce([]);
-      await run(['--silent']);
+      await cli.run(['ls', '--silent']);
       expect(mockConsoleLog).not.toHaveBeenCalled();
       expect(mockExit).toHaveBeenCalledWith(0);
+    });
+
+    it('should handle unknown command', async () => {
+      await cli.run(['unknown']);
+      expect(mockConsoleError).toHaveBeenCalledWith('Unknown command: unknown');
+      expect(mockExit).toHaveBeenCalledWith(1);
     });
   });
 });
