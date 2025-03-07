@@ -4,7 +4,7 @@ import {MacPathFinder} from './platforms/mac';
 import {WindowsPathFinder} from './platforms/win';
 import {PathInfo, PathType, SearchOptions} from './types';
 
-export class DriveLister {
+export class DriveLocator {
   private finder: MacPathFinder | WindowsPathFinder;
   private currentPlatform: string;
 
@@ -87,11 +87,11 @@ export class DriveLister {
   }
 }
 
-export const iCloudDriveLister = new DriveLister();
+export const iCloudDriveLocator = new DriveLocator();
 
 export async function findDrivePaths(options?: SearchOptions): Promise<PathInfo[]> {
   if (process.platform !== 'darwin' && process.platform !== 'win32') {
     throw new Error('Unsupported platform: ' + process.platform);
   }
-  return await iCloudDriveLister.findPaths(options);
-}
+  return await iCloudDriveLocator.findPaths(options);
+} 

@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import {minimatch} from 'minimatch';
 import * as path from 'path';
 
-import {findDrivePaths} from './list';
+import {findDrivePaths} from './locate';
 import {PathInfo, PathType, SearchOptions} from './types';
 
 export interface CopyOptions {

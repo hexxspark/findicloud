@@ -1,21 +1,21 @@
-import * as listModule from '../../list';
-import {ListCommand} from '../../commands/list';
+import * as locateModule from '../../locate';
+import {LocateCommand} from '../../commands/locate';
 import {PathType} from '../../types';
 import stripAnsi from 'strip-ansi';
 
 // Mock findDrivePaths function
-jest.mock('../../list');
+jest.mock('../../locate');
 const mockFindDrivePaths = jest.fn().mockResolvedValue([]);
-(listModule.findDrivePaths as jest.Mock) = mockFindDrivePaths;
+(locateModule.findDrivePaths as jest.Mock) = mockFindDrivePaths;
 
-describe('ListCommand', () => {
-  let command: ListCommand;
+describe('LocateCommand', () => {
+  let command: LocateCommand;
   let mockConsoleLog: jest.SpyInstance;
   let mockConsoleError: jest.SpyInstance;
   let mockExit: jest.SpyInstance;
 
   beforeEach(() => {
-    command = new ListCommand();
+    command = new LocateCommand();
     mockConsoleLog = jest.spyOn(console, 'log').mockImplementation();
     mockConsoleError = jest.spyOn(console, 'error').mockImplementation();
     mockExit = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
@@ -26,12 +26,12 @@ describe('ListCommand', () => {
   });
 
   describe('Command Execution', () => {
-    it('should list all paths when no arguments provided', async () => {
+    it('should locate all paths when no arguments provided', async () => {
       await command.execute([]);
       expect(mockConsoleLog).toHaveBeenCalled();
     });
 
-    it('should list app paths with name filter', async () => {
+    it('should locate app paths with name filter', async () => {
       await command.execute(['app', 'TestApp']);
       expect(mockFindDrivePaths).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -41,7 +41,7 @@ describe('ListCommand', () => {
       );
     });
 
-    it('should list photo paths', async () => {
+    it('should locate photo paths', async () => {
       await command.execute(['photos']);
       expect(mockFindDrivePaths).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -50,7 +50,7 @@ describe('ListCommand', () => {
       );
     });
 
-    it('should list document paths', async () => {
+    it('should locate document paths', async () => {
       await command.execute(['docs']);
       expect(mockFindDrivePaths).toHaveBeenCalledWith(
         expect.objectContaining({

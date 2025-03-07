@@ -1,7 +1,7 @@
 import {vol} from 'memfs';
 import path from 'path';
 
-import {DriveLister} from '../list';
+import {DriveLocator} from '../locate';
 import {PathType} from '../types';
 
 const mockExecSync = jest.fn();
@@ -50,8 +50,8 @@ jest.mock('path', () => {
 
 const os = require('os');
 
-describe('DriveLister', () => {
-  let lister: DriveLister;
+describe('DriveLocator', () => {
+  let lister: DriveLocator;
 
 
   describe('findPaths', () => {
@@ -80,7 +80,7 @@ describe('DriveLister', () => {
       
       vol.fromJSON(testFiles);
       
-      lister = new DriveLister();
+      lister = new DriveLocator();
     });
     
     it('should find app data', async () => {
@@ -158,7 +158,7 @@ describe('DriveLister', () => {
           '    UserSyncRootPath    REG_SZ    C:\\Users\\TestUser\\iCloudDrive\r\n',
       );
 
-      lister = new DriveLister();
+      lister = new DriveLocator();
     });
 
     it('should find paths on Windows', async () => {
@@ -200,7 +200,7 @@ describe('DriveLister', () => {
 
       vol.fromJSON(testFiles);
 
-      lister = new DriveLister();
+      lister = new DriveLocator();
     });
 
     it('should find paths on macOS', async () => {
@@ -234,7 +234,7 @@ describe('DriveLister', () => {
     });
 
     it('should throw error for unsupported platform', () => {
-      expect(() => new DriveLister()).toThrow('Unsupported platform: linux');
+      expect(() => new DriveLocator()).toThrow('Unsupported platform: linux');
     });
   });
 
@@ -242,7 +242,7 @@ describe('DriveLister', () => {
     beforeEach(() => {
       os.platform.mockReturnValue('win32');
       os.homedir.mockReturnValue('C:\\Users\\TestUser');
-      lister = new DriveLister();
+      lister = new DriveLocator();
     });
 
     it('should handle registry access errors', async () => {

@@ -1,2 +1,2 @@
-export * from './list';
+export * from './locate';
 export * from './types';

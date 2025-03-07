@@ -2,7 +2,7 @@
 
 import {BaseCommand} from './commands/base';
 import {CopyCommand} from './commands/copy';
-import {ListCommand} from './commands/list';
+import {LocateCommand} from './commands/locate';
 import {PathType, SearchOptions} from './types';
 import {colors, setColorEnabled} from './utils/colors';
 
@@ -57,7 +57,7 @@ export class CLI {
   private commands: Map<string, BaseCommand> = new Map();
 
   constructor() {
-    this.registerCommand(new ListCommand());
+    this.registerCommand(new LocateCommand());
     this.registerCommand(new CopyCommand());
   }
 
@@ -86,8 +86,8 @@ export class CLI {
         return;
       }
 
-      // 获取命令名称（默认为list）
-      const commandName = args[0] || 'list';
+      // 获取命令名称（默认为locate）
+      const commandName = args[0] || 'locate';
       const command = this.findCommand(commandName);
 
       if (!command) {
@@ -118,15 +118,15 @@ export class CLI {
 Usage: icloudy [command] [options]
 
 Commands:
-  list [type] [app-name]  List iCloud Drive paths and files (default)
+  locate [type] [app-name]  Locate iCloud Drive paths and files (default)
   copy [options]          Copy files to iCloud Drive
 
-Types (for list command):
-  app <name>    List specific application data
-  photos        List photos library
-  docs          List documents library
-  root          List root directory
-  all           List all paths (default)
+Types (for locate command):
+  app <n>    Locate specific application data
+  photos        Locate photos library
+  docs          Locate documents library
+  root          Locate root directory
+  all           Locate all paths (default)
 
 Global Options:
   -n, --no-color   Disable colorized output
@@ -135,10 +135,10 @@ Global Options:
   -h, --help       Display help information
 
 Examples:
-  icloudy list                    # List all paths
-  icloudy list app Word          # List Word app data
-  icloudy list photos            # List photos library
-  icloudy list docs              # List documents library
+  icloudy locate                    # Locate all paths
+  icloudy locate app Word          # Locate Word app data
+  icloudy locate photos            # Locate photos library
+  icloudy locate docs              # Locate documents library
 
 Use 'icloudy <command> --help' for more information about a command.
     `;

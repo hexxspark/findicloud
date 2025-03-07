@@ -1,12 +1,12 @@
-import {findDrivePaths} from '../list';
+import {findDrivePaths} from '../locate';
 import {CommandOptions, PathType} from '../types';
 import {colors} from '../utils/colors';
 import {BaseCommand} from './base';
 
-export class ListCommand extends BaseCommand {
-  name = 'list';
-  aliases = ['ls'];
-  description = 'List iCloud Drive paths';
+export class LocateCommand extends BaseCommand {
+  name = 'locate';
+  aliases = ['loc'];
+  description = 'Locate iCloud Drive paths';
 
   async execute(args: string[]): Promise<void> {
     // Analyze parameters
@@ -104,14 +104,14 @@ export class ListCommand extends BaseCommand {
 
   getHelp(): string {
     return `
-Usage: icloudy list [type] [app-name] [options]
+Usage: icloudy locate [type] [app-name] [options]
 
 Types:
-  app <name>    List specific application data
-  photos        List photos library
-  docs          List documents library
-  root          List root directory
-  all           List all paths (default)
+  app <n>    Locate specific application data
+  photos        Locate photos library
+  docs          Locate documents library
+  root          Locate root directory
+  all           Locate all paths (default)
 
 Options:
   -m, --min-score <n>         Minimum path score (default: 0)
@@ -122,11 +122,11 @@ Options:
   -h, --help                 Display help information
 
 Examples:
-  icloudy list                    # List all paths
-  icloudy list app Word          # List Word app data
-  icloudy list photos            # List photos library
-  icloudy list docs              # List documents library
-  icloudy list app "Microsoft Word"  # List Microsoft Word app data
+  icloudy locate                    # Locate all paths
+  icloudy locate app Word          # Locate Word app data
+  icloudy locate photos            # Locate photos library
+  icloudy locate docs              # Locate documents library
+  icloudy locate app "Microsoft Word"  # Locate Microsoft Word app data
     `;
   }
-}
+} 

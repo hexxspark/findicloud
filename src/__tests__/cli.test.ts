@@ -1,15 +1,15 @@
 import {CLI, parseGlobalOptions} from '../cli';
-import {ListCommand} from '../commands/list';
+import {LocateCommand} from '../commands/locate';
 import stripAnsi from 'strip-ansi';
 
-// Mock ListCommand
-jest.mock('../commands/list', () => {
+// Mock LocateCommand
+jest.mock('../commands/locate', () => {
   return {
-    ListCommand: jest.fn().mockImplementation(() => ({
-      name: 'list',
-      aliases: ['ls'],
+    LocateCommand: jest.fn().mockImplementation(() => ({
+      name: 'locate',
+      aliases: ['loc'],
       execute: jest.fn().mockResolvedValue(undefined),
-      getHelp: jest.fn().mockReturnValue('List command help')
+      getHelp: jest.fn().mockReturnValue('Locate command help')
     }))
   };
 });
@@ -31,13 +31,13 @@ describe('CLI', () => {
   let mockConsoleError: jest.SpyInstance;
   let mockExit: jest.SpyInstance;
   let cli: CLI;
-  let mockListCommand: jest.Mock;
+  let mockLocateCommand: jest.Mock;
 
   beforeEach(() => {
     mockConsoleLog = jest.spyOn(console, 'log').mockImplementation();
     mockConsoleError = jest.spyOn(console, 'error').mockImplementation();
     mockExit = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-    mockListCommand = ListCommand as jest.Mock;
+    mockLocateCommand = LocateCommand as jest.Mock;
     cli = new CLI();
   });
 
@@ -80,22 +80,22 @@ describe('CLI', () => {
     });
 
     it('should show command help when command --help is provided', async () => {
-      await cli.run(['list', '--help']);
+      await cli.run(['locate', '--help']);
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.any(String));
 
       const actualOutput = mockConsoleLog.mock.calls[0][0];
-      expect(stripAnsi(actualOutput)).toContain('list [type] [app-name]  List iCloud Drive paths');
+      expect(stripAnsi(actualOutput)).toContain('locate [type] [app-name]  Locate iCloud Drive paths');
     });
 
-    it('should execute list command by default', async () => {
+    it('should execute locate command by default', async () => {
       await cli.run([]); 
-      const mockInstance = mockListCommand.mock.results[0].value;
+      const mockInstance = mockLocateCommand.mock.results[0].value;
       expect(mockInstance.execute).toHaveBeenCalled();
     });
 
-    it('should execute list command with alias', async () => {
-      await cli.run(['ls']);
-      const mockInstance = mockListCommand.mock.results[0].value;
+    it('should execute locate command with alias', async () => {
+      await cli.run(['loc']);
+      const mockInstance = mockLocateCommand.mock.results[0].value;
       expect(mockInstance.execute).toHaveBeenCalled();
     });
 
@@ -106,17 +106,17 @@ describe('CLI', () => {
     });
 
     it('should pass remaining args to command', async () => {
-      await cli.run(['list', 'app', 'TestApp']);
-      const mockInstance = mockListCommand.mock.results[0].value;
+      await cli.run(['locate', 'app', 'TestApp']);
+      const mockInstance = mockLocateCommand.mock.results[0].value;
       expect(mockInstance.execute).toHaveBeenCalledWith(['app', 'TestApp']);
     });
 
     it('should handle command execution errors', async () => {
       const mockError = new Error('Command failed');
-      const mockInstance = mockListCommand.mock.results[0].value;
+      const mockInstance = mockLocateCommand.mock.results[0].value;
       mockInstance.execute.mockRejectedValueOnce(mockError);
 
-      await cli.run(['list']);
+      await cli.run(['locate']);
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Command failed'));
       expect(mockExit).toHaveBeenCalledWith(1);
     });

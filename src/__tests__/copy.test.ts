@@ -3,11 +3,11 @@ import {vol} from 'memfs';
 import * as path from 'path';
 
 import {FileCopier} from '../copy';
-import {findDrivePaths} from '../list';
+import {findDrivePaths} from '../locate';
 import {PathType} from '../types';
 
 // Mock dependencies
-jest.mock('../list');
+jest.mock('../locate');
 jest.mock('fs', () => {
   const actualFs = jest.requireActual('fs');
   const memfs = require('memfs');
