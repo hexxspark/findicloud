@@ -81,4 +81,6 @@ export interface CommandOptions extends SearchOptions {
   targetApp?: string;
   pattern?: string;
   overwrite?: boolean;
+  detailed?: boolean;
+  tableFormat?: boolean;
 }
