@@ -30,8 +30,8 @@ export class MacPathFinder extends BasePathFinder {
       return PathType.ROOT;
     }
 
-    if (this.isAppStoragePath(path)) {
-      return PathType.APP_STORAGE;
+    if (this.isAppPath(path)) {
+      return PathType.APP;
     }
 
     if (basename.toLowerCase().includes('photos')) {
@@ -39,10 +39,14 @@ export class MacPathFinder extends BasePathFinder {
     }
 
     if (basename.toLowerCase().includes('documents')) {
-      return PathType.DOCUMENTS;
+      return PathType.DOCS;
     }
 
     return PathType.OTHER;
+  }
+
+  private isAppPath(path: string): boolean {
+    return this.isAppStoragePath(path);
   }
 
   protected _enrichMetadata(metadata: PathMetadata, path: string, source: PathSource): PathMetadata {
@@ -118,15 +122,19 @@ export class MacPathFinder extends BasePathFinder {
             directoryType: 'root',
           });
 
-          const docsPath: string = join(fullPath, 'Documents');
-          if (fs.existsSync(docsPath)) {
-            this._addPath(docsPath, {
-              source: 'userDirectory',
-              user: username,
-              directoryType: 'documents',
-            });
+          // Check for standard directories
+          const standardDirs = ['Documents', 'Photos'];
+          for (const dir of standardDirs) {
+            const dirPath = join(fullPath, dir);
+            if (fs.existsSync(dirPath)) {
+              this._addPath(dirPath, {
+                source: 'userDirectory',
+                user: username,
+                directoryType: dir.toLowerCase(),
+              });
+            }
           }
-        } else if (this.isAppStoragePath(entry.name)) {
+        } else if (this.isAppPath(entry.name)) {
           this._addPath(fullPath, {
             source: 'userDirectory',
             user: username,

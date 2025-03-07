@@ -19,10 +19,10 @@ export const colorTheme = {
   
   // Path type colors
   pathType: {
-    [PathType.ROOT]: chalk.blue,
-    [PathType.APP_STORAGE]: chalk.magenta,
-    [PathType.PHOTOS]: chalk.cyan,
-    [PathType.DOCUMENTS]: chalk.green,
+    [PathType.APP]: chalk.magenta,
+    [PathType.PHOTOS]: chalk.blue,
+    [PathType.DOCS]: chalk.yellow,
+    [PathType.ROOT]: chalk.green,
     [PathType.OTHER]: chalk.gray,
   },
   
@@ -84,7 +84,7 @@ export const colors = {
       : (pathInfo.isAccessible ? '✓' : '✗');
     
     let details = '';
-    if (pathInfo.type === PathType.APP_STORAGE && pathInfo.metadata.appName) {
+    if (pathInfo.type === PathType.APP && pathInfo.metadata.appName) {
       details = useColor ? colors.dim(` (${pathInfo.metadata.appName})`) : ` (${pathInfo.metadata.appName})`;
       if (pathInfo.metadata.bundleId) {
         details += useColor ? colors.dim(` [${pathInfo.metadata.bundleId}]`) : ` [${pathInfo.metadata.bundleId}]`;

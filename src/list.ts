@@ -22,9 +22,8 @@ export class DriveLister {
 
   async findPaths(options?: SearchOptions): Promise<PathInfo[]> {
     const defaultOptions: SearchOptions = {
-      types: Object.values(PathType),
       includeInaccessible: false,
-      minScore: 0,
+      minScore: 0
     };
 
     const finalOptions = {...defaultOptions, ...options};
@@ -43,15 +42,15 @@ export class DriveLister {
         return false;
       }
 
-      if (options.types && !options.types.includes(path.type)) {
+      if (options.type && path.type !== options.type) {
         return false;
       }
 
       return true;
     });
 
-    if (options.appNamePattern) {
-      filtered = this._findMatchingApps(options.appNamePattern, filtered);
+    if (options.type === PathType.APP && options.appName) {
+      filtered = this._findMatchingApps(options.appName, filtered);
     }
 
     return filtered;

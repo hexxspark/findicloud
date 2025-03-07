@@ -115,7 +115,7 @@ describe('MacPathFinder', () => {
 
     it('should find app storage paths', async () => {
       const result = await finder.findPaths();
-      const appPaths = result.filter(p => p.type === PathType.APP_STORAGE);
+      const appPaths = result.filter(p => p.type === PathType.APP);
 
       expect(appPaths.length).toBeGreaterThan(0);
       expect(appPaths.some(p => p.metadata.appId?.includes('apple~notes'))).toBeTruthy();
@@ -260,6 +260,38 @@ describe('MacPathFinder', () => {
       const result = await finder.findPaths();
       expect(result.length).toBeGreaterThan(0);
       expect(result.every(p => p.path && p.type)).toBeTruthy();
+    });
+  });
+
+  describe('_classifyPath', () => {
+    it('should classify app paths', () => {
+      const finder = new MacPathFinder();
+      const path = '/Users/test/Library/Mobile Documents/com~apple~TestApp';
+      expect(finder['_classifyPath'](path)).toBe(PathType.APP);
+    });
+
+    it('should classify photos paths', () => {
+      const finder = new MacPathFinder();
+      const path = '/Users/test/Library/Mobile Documents/com~apple~CloudDocs/Photos';
+      expect(finder['_classifyPath'](path)).toBe(PathType.PHOTOS);
+    });
+
+    it('should classify document paths', () => {
+      const finder = new MacPathFinder();
+      const path = '/Users/test/Library/Mobile Documents/com~apple~CloudDocs/Documents';
+      expect(finder['_classifyPath'](path)).toBe(PathType.DOCS);
+    });
+
+    it('should classify root paths', () => {
+      const finder = new MacPathFinder();
+      const path = '/Users/test/Library/Mobile Documents/com~apple~CloudDocs';
+      expect(finder['_classifyPath'](path)).toBe(PathType.ROOT);
+    });
+
+    it('should classify other paths', () => {
+      const finder = new MacPathFinder();
+      const path = '/Users/test/Library/Mobile Documents/com~apple~CloudDocs/Other';
+      expect(finder['_classifyPath'](path)).toBe(PathType.OTHER);
     });
   });
 });

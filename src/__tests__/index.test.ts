@@ -35,10 +35,10 @@ describe('Index Exports', () => {
 
     try {
       const result = await findDrivePaths({
-        types: [PathType.ROOT],
+        type: PathType.ROOT,
         includeInaccessible: false,
         minScore: 10,
-        appNamePattern: 'test',
+        appName: 'test',
       });
 
       expect(Array.isArray(result)).toBeTruthy();

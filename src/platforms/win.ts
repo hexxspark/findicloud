@@ -1,6 +1,6 @@
 import {execSync} from 'child_process';
 import * as fs from 'fs';
-import {join} from 'path';
+import {join, basename} from 'path';
 
 import {BasePathFinder} from '../base';
 import {PathInfo, PathMetadata, PathSource, PathType} from '../types';
@@ -116,8 +116,8 @@ export class WindowsPathFinder extends BasePathFinder {
   protected _classifyPath(path: string): PathType {
     const normalizedPath = path.toLowerCase();
 
-    if (this.isAppStoragePath(path)) {
-      return PathType.APP_STORAGE;
+    if (this.isAppPath(path)) {
+      return PathType.APP;
     }
 
     if (normalizedPath.includes('photos')) {
@@ -125,14 +125,24 @@ export class WindowsPathFinder extends BasePathFinder {
     }
 
     if (normalizedPath.includes('documents')) {
-      return PathType.DOCUMENTS;
+      return PathType.DOCS;
     }
 
-    if (normalizedPath.includes('iclouddrive') || normalizedPath.includes('icloud drive')) {
+    if (this.isRootPath(normalizedPath)) {
       return PathType.ROOT;
     }
 
     return PathType.OTHER;
+  }
+
+  private isRootPath(inputPath: string): boolean {
+    const normalizedPath = inputPath.toLowerCase().replace(/\\/g, '/').trim();
+    const name = basename(normalizedPath);
+    return name === 'iclouddrive' || name === 'icloud drive';
+  }
+
+  private isAppPath(path: string): boolean {
+    return this.isAppStoragePath(path);
   }
 
   private async _discoverAppStoragePaths(): Promise<void> {

@@ -76,6 +76,7 @@
     "memfs": "^4.17.0",
     "prettier": "^3.5.3",
     "release-it": "^18.1.2",
+    "strip-ansi": "^6.0.1",
     "ts-jest": "^29.2.6",
     "tslib": "^2.8.1",
     "tsup": "^8.4.0",

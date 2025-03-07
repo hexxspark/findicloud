@@ -1,7 +1,7 @@
 import {vol} from 'memfs';
 import path from 'path';
 
-import {DriveLister as DriveLister} from '../list';
+import {DriveLister} from '../list';
 import {PathType} from '../types';
 
 const mockExecSync = jest.fn();
@@ -50,12 +50,91 @@ jest.mock('path', () => {
 
 const os = require('os');
 
-describe('ICloudDriveLister', () => {
+describe('DriveLister', () => {
   let lister: DriveLister;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    vol.reset();
+
+  describe('findPaths', () => {
+    beforeEach(() => {
+      os.platform.mockReturnValue('darwin');
+      os.homedir.mockReturnValue('/Users/testuser');
+
+      // Setup test files for different path types in macOS structure
+      const testFiles = {
+        // Root iCloud Drive directory
+        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/.icloud': '',
+        
+        // App data
+        '/Users/testuser/Library/Mobile Documents/iCloud~com~testapp/data.txt': 'test content',
+        '/Users/testuser/Library/Mobile Documents/iCloud~com~testapp/Documents/config.json': 'config',
+        
+        // Photos directory structure
+        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos': null,
+        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos/vacation.jpg': 'photo content',
+        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos/family.jpg': 'photo content',
+        
+        // Documents
+        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Documents/report.doc': 'document content',
+        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Documents/notes.txt': 'notes content',
+      };
+      
+      vol.fromJSON(testFiles);
+      
+      lister = new DriveLister();
+    });
+    
+    it('should find app data', async () => {
+      const results = await lister.findPaths({
+        type: PathType.APP,
+        appName: 'TestApp'
+      });
+      
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.every(r => r.type === PathType.APP)).toBe(true);
+      expect(results.every(r => 
+        r.metadata.appName?.toLowerCase().includes('testapp'.toLowerCase())
+      )).toBe(true);
+    });
+
+    it('should find photos', async () => {
+      const results = await lister.findPaths({
+        type: PathType.PHOTOS
+      });
+      
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.every(r => r.type === PathType.PHOTOS)).toBe(true);
+    });
+
+    it('should find documents', async () => {
+      const results = await lister.findPaths({
+        type: PathType.DOCS
+      });
+      
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.every(r => r.type === PathType.DOCS)).toBe(true);
+    });
+
+    it('should filter inaccessible paths', async () => {
+      const results = await lister.findPaths({
+        includeInaccessible: false
+      });
+      
+      expect(results.every(r => r.isAccessible)).toBe(true);
+    });
+
+    it('should filter by minimum score', async () => {
+      const minScore = 50;
+      const results = await lister.findPaths({
+        minScore
+      });
+      
+      expect(results.every(r => r.score >= minScore)).toBe(true);
+    });
+
+    it('should find all paths when no type specified', async () => {
+      const results = await lister.findPaths();
+      expect(results.length).toBeGreaterThan(0);
+    });
   });
 
   describe('Windows Environment', () => {
@@ -94,11 +173,11 @@ describe('ICloudDriveLister', () => {
 
     it('should find app storage paths', async () => {
       const paths = await lister.findPaths();
-      const appPaths = paths.filter(p => p.type === PathType.APP_STORAGE);
+      const appPaths = paths.filter(p => p.type === PathType.APP);
       expect(appPaths).toContainEqual(
         expect.objectContaining({
           path: path.normalize('C:\\Users\\TestUser\\iCloudDrive\\iCloud~com~apple~notes'),
-          type: PathType.APP_STORAGE,
+          type: PathType.APP,
           metadata: expect.objectContaining({
             appId: 'iCloud~com~apple~notes',
           }),
@@ -136,11 +215,11 @@ describe('ICloudDriveLister', () => {
 
     it('should find app storage paths', async () => {
       const paths = await lister.findPaths();
-      const appPaths = paths.filter(p => p.type === PathType.APP_STORAGE);
+      const appPaths = paths.filter(p => p.type === PathType.APP);
       expect(appPaths).toContainEqual(
         expect.objectContaining({
           path: '/Users/testuser/Library/Mobile Documents/iCloud~com~apple~notes',
-          type: PathType.APP_STORAGE,
+          type: PathType.APP,
           metadata: expect.objectContaining({
             appId: 'iCloud~com~apple~notes',
           }),

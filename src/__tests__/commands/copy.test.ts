@@ -1,6 +1,6 @@
 import {CopyCommand} from '../../commands/copy';
 import {FileCopier} from '../../copy';
-import {CommandOptions, PathType} from '../../types';
+import {PathType} from '../../types';
 
 // Mock dependencies
 jest.mock('../../copy');
@@ -17,21 +17,6 @@ describe('CopyCommand', () => {
   });
 
   describe('execute', () => {
-    const mockOptions: CommandOptions = {
-      source: '/test/source',
-      targetType: 'documents' as PathType,
-      targetApp: undefined,
-      pattern: undefined,
-      recursive: false,
-      overwrite: false,
-      dryRun: false,
-      silent: false,
-      showHelp: false,
-      jsonOutput: false,
-      noColor: false,
-      types: [],
-    };
-
     it('should successfully copy files', async () => {
       const mockResult = {
         success: true,
@@ -43,29 +28,20 @@ describe('CopyCommand', () => {
 
       mockFileCopier.copy.mockResolvedValue(mockResult);
 
-      await copyCommand.execute(mockOptions);
+      await copyCommand.execute(['/test/source', '--target-type', 'documents']);
 
-      expect(mockFileCopier.copy).toHaveBeenCalledWith({
-        source: mockOptions.source,
-        targetType: mockOptions.targetType,
-        targetApp: mockOptions.targetApp,
-        pattern: mockOptions.pattern,
-        recursive: mockOptions.recursive,
-        overwrite: mockOptions.overwrite,
-        dryRun: mockOptions.dryRun,
-      });
+      expect(mockFileCopier.copy).toHaveBeenCalledWith(expect.objectContaining({
+        source: '/test/source',
+        targetType: PathType.DOCS,
+      }));
     });
 
     it('should throw error when source path is not provided', async () => {
-      const invalidOptions = {...mockOptions, source: undefined};
-
-      await expect(copyCommand.execute(invalidOptions)).rejects.toThrow('Source path is required');
+      await expect(copyCommand.execute(['--target-type', 'documents'])).rejects.toThrow('Source path is required');
     });
 
     it('should throw error when target type is not provided', async () => {
-      const invalidOptions = {...mockOptions, targetType: undefined};
-
-      await expect(copyCommand.execute(invalidOptions)).rejects.toThrow('Target type is required');
+      await expect(copyCommand.execute(['/test/source'])).rejects.toThrow('Target type is required');
     });
 
     it('should handle copy operation failure', async () => {
@@ -79,11 +55,10 @@ describe('CopyCommand', () => {
 
       mockFileCopier.copy.mockResolvedValue(mockResult);
 
-      await expect(copyCommand.execute(mockOptions)).rejects.toThrow('Copy operation failed: Permission denied');
+      await expect(copyCommand.execute(['/test/source', '--target-type', 'documents'])).rejects.toThrow('Copy operation failed: Permission denied');
     });
 
     it('should handle dry run mode', async () => {
-      const dryRunOptions = {...mockOptions, dryRun: true};
       const mockResult = {
         success: true,
         copiedFiles: ['/test/source/file1.txt'],
@@ -94,17 +69,14 @@ describe('CopyCommand', () => {
 
       mockFileCopier.copy.mockResolvedValue(mockResult);
 
-      await copyCommand.execute(dryRunOptions);
+      await copyCommand.execute(['/test/source', '--target-type', 'documents', '--dry-run']);
 
-      expect(mockFileCopier.copy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          dryRun: true,
-        }),
-      );
+      expect(mockFileCopier.copy).toHaveBeenCalledWith(expect.objectContaining({
+        dryRun: true,
+      }));
     });
 
     it('should handle recursive copy', async () => {
-      const recursiveOptions = {...mockOptions, recursive: true};
       const mockResult = {
         success: true,
         copiedFiles: ['/test/source/file1.txt', '/test/source/dir/file2.txt'],
@@ -115,17 +87,14 @@ describe('CopyCommand', () => {
 
       mockFileCopier.copy.mockResolvedValue(mockResult);
 
-      await copyCommand.execute(recursiveOptions);
+      await copyCommand.execute(['/test/source', '--target-type', 'documents', '--recursive']);
 
-      expect(mockFileCopier.copy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          recursive: true,
-        }),
-      );
+      expect(mockFileCopier.copy).toHaveBeenCalledWith(expect.objectContaining({
+        recursive: true,
+      }));
     });
 
     it('should handle file pattern matching', async () => {
-      const patternOptions = {...mockOptions, pattern: '*.txt'};
       const mockResult = {
         success: true,
         copiedFiles: ['/test/source/file1.txt', '/test/source/file2.txt'],
@@ -136,13 +105,11 @@ describe('CopyCommand', () => {
 
       mockFileCopier.copy.mockResolvedValue(mockResult);
 
-      await copyCommand.execute(patternOptions);
+      await copyCommand.execute(['/test/source', '--target-type', 'documents', '--pattern', '*.txt']);
 
-      expect(mockFileCopier.copy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          pattern: '*.txt',
-        }),
-      );
+      expect(mockFileCopier.copy).toHaveBeenCalledWith(expect.objectContaining({
+        pattern: '*.txt',
+      }));
     });
   });
 

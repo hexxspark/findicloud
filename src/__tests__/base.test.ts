@@ -23,7 +23,7 @@ const REGISTRY_SOURCE: PathSource = {source: 'registry'};
 class TestPathFinder extends BasePathFinder {
   protected _classifyPath(path: string): PathType {
     if (path.includes('iCloud~')) {
-      return PathType.APP_STORAGE;
+      return PathType.APP;
     }
     return PathType.ROOT;
   }
@@ -169,7 +169,7 @@ describe('BasePathFinder', () => {
 
       const paths = finder.getPaths();
       expect(paths.find(p => p.path === rootPath)?.type).toBe(PathType.ROOT);
-      expect(paths.find(p => p.path === appPath)?.type).toBe(PathType.APP_STORAGE);
+      expect(paths.find(p => p.path === appPath)?.type).toBe(PathType.APP);
     });
   });
 

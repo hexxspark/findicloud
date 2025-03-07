@@ -6,9 +6,12 @@ import {BaseCommand} from './base';
 export class ListCommand extends BaseCommand {
   name = 'list';
   aliases = ['ls'];
-  description = 'List iCloud Drive paths and files';
+  description = 'List iCloud Drive paths';
 
-  async execute(options: CommandOptions): Promise<void> {
+  async execute(args: string[]): Promise<void> {
+    // Analyze parameters
+    const options = this.parseArgs(args);
+    
     try {
       if (!options.silent) {
         console.log(colors.info('Locating iCloud Drive paths...'));
@@ -20,7 +23,7 @@ export class ListCommand extends BaseCommand {
         if (!options.silent) {
           console.log(colors.warning('No iCloud Drive paths found.'));
         }
-        process.exit(0);
+        return;
       }
 
       if (options.jsonOutput) {
@@ -42,14 +45,76 @@ export class ListCommand extends BaseCommand {
     }
   }
 
+  protected parseArgs(args: string[]): CommandOptions {
+    const options: CommandOptions = {
+      showHelp: false,
+      jsonOutput: false,
+      noColor: false,
+      silent: false,
+      includeInaccessible: false,
+      minScore: 0
+    };
+
+    // Handle main parameters (type and app name)
+    if (args.length > 0) {
+      const type = args[0].toUpperCase();
+      if (type in PathType) {
+        options.type = PathType[type as keyof typeof PathType];
+        
+        // If the type is app, the second parameter is app name
+        if (options.type === PathType.APP && args.length > 1) {
+          options.appName = args[1];
+        }
+      }
+    }
+
+    // Handle other options
+    for (let i = 0; i < args.length; i++) {
+      const arg = args[i].toLowerCase();
+      switch (arg) {
+        case '--json':
+        case '-j':
+          options.jsonOutput = true;
+          break;
+        case '--no-color':
+        case '-n':
+          options.noColor = true;
+          break;
+        case '--silent':
+        case '-s':
+          options.silent = true;
+          break;
+        case '--help':
+        case '-h':
+          options.showHelp = true;
+          break;
+        case '--min-score':
+        case '-m':
+          options.minScore = parseInt(args[++i], 10) || 0;
+          break;
+        case '--include-inaccessible':
+        case '-i':
+          options.includeInaccessible = true;
+          break;
+      }
+    }
+
+    return options;
+  }
+
   getHelp(): string {
     return `
-Usage: icloudy list [options]
+Usage: icloudy list [type] [app-name] [options]
+
+Types:
+  app <name>    List specific application data
+  photos        List photos library
+  docs          List documents library
+  root          List root directory
+  all           List all paths (default)
 
 Options:
-  -t, --type <type>           Filter by path type (root|app_storage|photos|documents|other)
-  -a, --app <name>            Search for specific app (e.g., "notes", "1password")
-  -m, --min-score <number>    Minimum score threshold
+  -m, --min-score <n>         Minimum path score (default: 0)
   -i, --include-inaccessible  Include inaccessible paths
   -j, --json                  Output in JSON format
   -n, --no-color             Disable colorized output
@@ -57,10 +122,11 @@ Options:
   -h, --help                 Display help information
 
 Examples:
-  icloudy list                      # List all iCloud paths
-  icloudy list -t root             # Only show root paths
-  icloudy list -a notes           # Show Notes app storage location
-  icloudy list -t app_storage -m 10 # Show app storage paths with min score 10
+  icloudy list                    # List all paths
+  icloudy list app Word          # List Word app data
+  icloudy list photos            # List photos library
+  icloudy list docs              # List documents library
+  icloudy list app "Microsoft Word"  # List Microsoft Word app data
     `;
   }
 }

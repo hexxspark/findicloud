@@ -6,7 +6,7 @@ import {ListCommand} from './commands/list';
 import {PathType, SearchOptions} from './types';
 import {colors, setColorEnabled} from './utils/colors';
 
-interface CliOptions extends SearchOptions {
+export interface CliOptions extends SearchOptions {
   showHelp: boolean;
   jsonOutput: boolean;
   noColor: boolean;
@@ -20,43 +20,20 @@ interface CliOptions extends SearchOptions {
   dryRun?: boolean;
 }
 
-export function parseArgs(args: string[]): CliOptions {
-  const options: CliOptions = {
+export function parseGlobalOptions(args: string[]): Partial<CliOptions> {
+  const options: Partial<CliOptions> = {
     showHelp: false,
     jsonOutput: false,
     noColor: false,
-    silent: false,
-    types: [],
+    silent: false
   };
 
-  let i = 0;
-  while (i < args.length) {
-    const arg = args[i];
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i].toLowerCase();
     switch (arg) {
-      case '--type':
-      case '-t':
-        const type = args[++i]?.toUpperCase();
-        if (type && type in PathType) {
-          options.types!.push(PathType[type as keyof typeof PathType]);
-        }
-        break;
-      case '--app':
-      case '-a':
-        options.appNamePattern = args[++i];
-        if (!options.types?.length) {
-          options.types = [PathType.APP_STORAGE];
-        }
-        break;
-      case '--min-score':
-      case '-m':
-        const score = parseInt(args[++i]);
-        if (!isNaN(score)) {
-          options.minScore = score;
-        }
-        break;
-      case '--include-inaccessible':
-      case '-i':
-        options.includeInaccessible = true;
+      case '--help':
+      case '-h':
+        options.showHelp = true;
         break;
       case '--json':
       case '-j':
@@ -70,40 +47,7 @@ export function parseArgs(args: string[]): CliOptions {
       case '-s':
         options.silent = true;
         break;
-      case '--help':
-      case '-h':
-        options.showHelp = true;
-        break;
-      case '--source':
-        options.source = args[++i];
-        break;
-      case '--target-type':
-        options.targetType = args[++i] as PathType;
-        break;
-      case '--target-app':
-        options.targetApp = args[++i];
-        break;
-      case '--pattern':
-        options.pattern = args[++i];
-        break;
-      case '--recursive':
-      case '-r':
-        options.recursive = true;
-        break;
-      case '--force':
-      case '-f':
-        options.overwrite = true;
-        break;
-      case '--dry-run':
-      case '-d':
-        options.dryRun = true;
-        break;
     }
-    i++;
-  }
-
-  if (!options.types?.length) {
-    options.types = Object.values(PathType);
   }
 
   return options;
@@ -129,22 +73,21 @@ export class CLI {
   }
 
   async run(args: string[] = process.argv.slice(2)): Promise<void> {
-    let options: CliOptions | undefined;
     try {
-      // Parse options first to handle color settings early
-      options = parseArgs(args.slice(1));
+      const globalOptions = parseGlobalOptions(args);
       
-      // Set color mode based on options
-      setColorEnabled(!options.noColor);
+      if (globalOptions.noColor) {
+        setColorEnabled(false);
+      }
 
-      // Check if first argument is --help
-      if (args[0] === '--help') {
+      // 检查是否是帮助命令
+      if (globalOptions.showHelp) {
         this.showHelp();
-        process.exit(0);
         return;
       }
 
-      const commandName = args[0] || 'list'; // Default to list command
+      // 获取命令名称（默认为list）
+      const commandName = args[0] || 'list';
       const command = this.findCommand(commandName);
 
       if (!command) {
@@ -153,17 +96,19 @@ export class CLI {
         return;
       }
 
-      if (options.showHelp) {
+      // 移除命令名称，传递剩余参数和全局选项
+      const commandArgs = args.slice(1);
+      
+      // 如果命令参数包含帮助选项，显示命令帮助
+      if (globalOptions.showHelp) {
         console.log(colors.formatHelp(command.getHelp()));
-        process.exit(0);
         return;
       }
 
-      await command.execute(options);
+      // 执行命令
+      await command.execute(commandArgs);
     } catch (error) {
-      if (!options?.silent) {
-        console.error(colors.formatError(error instanceof Error ? error.message : String(error)));
-      }
+      console.error(colors.formatError(error instanceof Error ? error.message : String(error)));
       process.exit(1);
     }
   }
@@ -173,14 +118,27 @@ export class CLI {
 Usage: icloudy [command] [options]
 
 Commands:
-  list [options]    List iCloud Drive paths and files (default command)
-  copy [options]    Copy files to iCloud Drive
+  list [type] [app-name]  List iCloud Drive paths and files (default)
+  copy [options]          Copy files to iCloud Drive
+
+Types (for list command):
+  app <name>    List specific application data
+  photos        List photos library
+  docs          List documents library
+  root          List root directory
+  all           List all paths (default)
 
 Global Options:
   -n, --no-color   Disable colorized output
   -s, --silent     Suppress all output except errors
   -j, --json       Output in JSON format
   -h, --help       Display help information
+
+Examples:
+  icloudy list                    # List all paths
+  icloudy list app Word          # List Word app data
+  icloudy list photos            # List photos library
+  icloudy list docs              # List documents library
 
 Use 'icloudy <command> --help' for more information about a command.
     `;

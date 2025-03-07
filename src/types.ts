@@ -20,11 +20,11 @@ export interface PathSource {
 export type PathStats = Pick<Stats, 'mode' | 'uid' | 'gid' | 'size' | 'mtime'>;
 
 export enum PathType {
-  ROOT = 'root',
-  APP_STORAGE = 'app_storage',
+  APP = 'app',
   PHOTOS = 'photos',
-  DOCUMENTS = 'documents',
-  OTHER = 'other',
+  DOCS = 'docs',
+  ROOT = 'root',
+  OTHER = 'other'
 }
 
 export interface PathMetadata {
@@ -54,10 +54,10 @@ export interface PathInfo {
 }
 
 export interface SearchOptions {
-  types?: PathType[];
+  type?: PathType;
+  appName?: string;
   includeInaccessible?: boolean;
   minScore?: number;
-  appNamePattern?: string;
 }
 
 export interface SearchResult {
@@ -73,10 +73,12 @@ export interface CommandOptions extends SearchOptions {
   noColor: boolean;
   silent: boolean;
   source?: string;
+  target?: string;
+  recursive?: boolean;
+  force?: boolean;
+  dryRun?: boolean;
   targetType?: PathType;
   targetApp?: string;
   pattern?: string;
-  recursive?: boolean;
   overwrite?: boolean;
-  dryRun?: boolean;
 }

@@ -37,8 +37,8 @@ export class FileCopier {
 
   private async findTargetPaths(options: CopyOptions): Promise<PathInfo[]> {
     const searchOptions: SearchOptions = {
-      types: [options.targetType],
-      appNamePattern: options.targetApp,
+      type: options.targetType,
+      appName: options.targetApp,
       minScore: 10, // Ensure path reliability
     };
 

@@ -5,10 +5,12 @@ import {BaseCommand} from './base';
 
 export class CopyCommand extends BaseCommand {
   name = 'copy';
-  aliases = ['cp'];
   description = 'Copy files to iCloud Drive';
+  aliases = ['cp'];
 
-  async execute(options: CommandOptions): Promise<void> {
+  async execute(args: string[]): Promise<void> {
+    const options = this.parseArgs(args);
+
     if (!options.source) {
       throw new Error('Source path is required');
     }
@@ -56,7 +58,7 @@ export class CopyCommand extends BaseCommand {
 
   getHelp(): string {
     return `
-Usage: icloudy copy [options] <source>
+Usage: icloudy copy [options] <source> <target>
 
 Options:
   -t, --target-type <type>    Target path type (root|app_storage|photos|documents|other)
@@ -74,5 +76,55 @@ Examples:
   icloudy copy ./notes -t app_storage -a Notes
   icloudy copy ./photos/*.jpg -t photos -r
     `;
+  }
+
+  protected parseArgs(args: string[]): CommandOptions {
+    const options: CommandOptions = {
+      showHelp: args.includes('--help') || args.includes('-h'),
+      jsonOutput: args.includes('--json') || args.includes('-j'),
+      noColor: args.includes('--no-color') || args.includes('-n'),
+      silent: args.includes('--silent') || args.includes('-s'),
+      recursive: args.includes('--recursive') || args.includes('-r'),
+      force: args.includes('--force') || args.includes('-f'),
+      dryRun: args.includes('--dry-run')
+    };
+
+    // Extract source and target type
+    const nonOptionArgs = args.filter(arg => !arg.startsWith('-') && 
+      args[args.indexOf(arg) - 1] !== '--target-type' && 
+      args[args.indexOf(arg) - 1] !== '-t');
+    if (nonOptionArgs.length > 0) {
+      options.source = nonOptionArgs[0];
+    }
+
+    // Find target type
+    const typeIndex = args.indexOf('--target-type');
+    if (typeIndex !== -1 && typeIndex + 1 < args.length) {
+      const type = args[typeIndex + 1].toLowerCase();
+      switch (type) {
+        case 'documents':
+          options.targetType = PathType.DOCS;
+          break;
+        case 'photos':
+          options.targetType = PathType.PHOTOS;
+          break;
+        case 'app':
+          options.targetType = PathType.APP;
+          break;
+        case 'root':
+          options.targetType = PathType.ROOT;
+          break;
+        default:
+          options.targetType = PathType.OTHER;
+      }
+    }
+
+    // Find pattern
+    const patternIndex = args.indexOf('--pattern') !== -1 ? args.indexOf('--pattern') : args.indexOf('-p');
+    if (patternIndex !== -1 && patternIndex + 1 < args.length) {
+      options.pattern = args[patternIndex + 1];
+    }
+
+    return options;
   }
 }

@@ -99,7 +99,7 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
 
     it('should find all app storage paths with different formats', async () => {
       const paths = await finder.findPaths();
-      const appPaths = paths.filter(p => p.type === PathType.APP_STORAGE);
+      const appPaths = paths.filter(p => p.type === PathType.APP);
 
       expect(appPaths.length).toBe(7);
       expect(appPaths.some(p => p.metadata.appId?.includes('simonbs~Scriptable'))).toBeTruthy();
@@ -116,8 +116,8 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
       const pixelmatorApp = paths.find(p => p.metadata.appId?.includes('pixelmator'));
       const mindnodeApp = paths.find(p => p.metadata.appId?.includes('mindnode'));
 
-      expect(pixelmatorApp?.type).toBe(PathType.APP_STORAGE);
-      expect(mindnodeApp?.type).toBe(PathType.APP_STORAGE);
+      expect(pixelmatorApp?.type).toBe(PathType.APP);
+      expect(mindnodeApp?.type).toBe(PathType.APP);
 
       expect(pixelmatorApp?.metadata.bundleId).toBe('com.pixelmatorteam.pixelmator');
       expect(mindnodeApp?.metadata.bundleId).toBe('com.mindnode.MindNode');
@@ -128,7 +128,7 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
       const complexApp = paths.find(p => p.metadata.appId?.includes('SubApp.Module'));
 
       expect(complexApp).toBeDefined();
-      expect(complexApp?.type).toBe(PathType.APP_STORAGE);
+      expect(complexApp?.type).toBe(PathType.APP);
       expect(complexApp?.metadata.bundleId).toBe('com.company.app.SubApp.Module');
       expect(complexApp?.metadata.appName).toBe('SubApp Module');
     });
@@ -208,5 +208,37 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
     //   expect(Array.isArray(paths)).toBeTruthy();
     //   expect(paths.every(p => p.metadata.bundleId !== undefined)).toBeTruthy();
     // });
+  });
+
+  describe('_classifyPath', () => {
+    it('should classify app paths', () => {
+      const finder = new WindowsPathFinder();
+      const path = 'C:\\Users\\Test\\iCloudDrive\\com~apple~TestApp';
+      expect(finder['_classifyPath'](path)).toBe(PathType.APP);
+    });
+
+    it('should classify photos paths', () => {
+      const finder = new WindowsPathFinder();
+      const path = 'C:\\Users\\Test\\iCloudDrive\\Photos';
+      expect(finder['_classifyPath'](path)).toBe(PathType.PHOTOS);
+    });
+
+    it('should classify document paths', () => {
+      const finder = new WindowsPathFinder();
+      const path = 'C:\\Users\\Test\\iCloudDrive\\Documents';
+      expect(finder['_classifyPath'](path)).toBe(PathType.DOCS);
+    });
+
+    it('should classify root paths', () => {
+      const finder = new WindowsPathFinder();
+      const path = 'C:\\Users\\Test\\iCloudDrive';
+      expect(finder['_classifyPath'](path)).toBe(PathType.ROOT);
+    });
+
+    it('should classify other paths', () => {
+      const finder = new WindowsPathFinder();
+      const path = 'C:\\Users\\Test\\iCloudDrive\\Other';
+      expect(finder['_classifyPath'](path)).toBe(PathType.OTHER);
+    });
   });
 });
