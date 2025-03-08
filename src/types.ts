@@ -1,4 +1,4 @@
-import {Stats} from 'fs';
+import { Stats } from 'fs';
 
 export interface RegistrySource {
   path: string;
@@ -83,4 +83,6 @@ export interface CommandOptions extends SearchOptions {
   overwrite?: boolean;
   detailed?: boolean;
   tableFormat?: boolean;
+  interactive?: boolean;
+  skipConfirmation?: boolean;
 }

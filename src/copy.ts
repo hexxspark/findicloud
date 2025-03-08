@@ -1,9 +1,9 @@
 import * as fs from 'fs';
-import {minimatch} from 'minimatch';
+import { minimatch } from 'minimatch';
 import * as path from 'path';
 
-import {findDrivePaths} from './locate';
-import {PathInfo, PathType, SearchOptions} from './types';
+import { findDrivePaths } from './locate';
+import { PathInfo, PathType, SearchOptions } from './types';
 
 export interface CopyOptions {
   source: string;
@@ -15,6 +15,16 @@ export interface CopyOptions {
   dryRun?: boolean;
 }
 
+export interface FileAnalysis {
+  files: Array<{
+    sourcePath: string;
+    targetPath: string;
+    size: number;
+  }>;
+  totalSize: number;
+  targetPath: string;
+}
+
 export interface CopyResult {
   success: boolean;
   copiedFiles: string[];
@@ -24,6 +34,43 @@ export interface CopyResult {
 }
 
 export class FileCopier {
+  async analyze(options: Omit<CopyOptions, 'dryRun' | 'overwrite'>): Promise<FileAnalysis> {
+    // 1. Find target paths
+    const targetPaths = await this.findTargetPaths(options);
+    if (targetPaths.length === 0) {
+      throw new Error('No valid target path found');
+    }
+
+    // 2. Select the best target path
+    const targetPath = this.selectBestTargetPath(targetPaths);
+
+    // 3. Get source files
+    const sourceFiles = await this.getSourceFiles(options);
+
+    // 4. Analyze files
+    const analysis: FileAnalysis = {
+      files: [],
+      totalSize: 0,
+      targetPath: targetPath.path,
+    };
+
+    for (const sourceFile of sourceFiles) {
+      const stats = await fs.promises.stat(sourceFile);
+      const relativePath = path.relative(options.source, sourceFile);
+      const targetFile = path.join(targetPath.path, relativePath);
+
+      analysis.files.push({
+        sourcePath: sourceFile,
+        targetPath: targetFile,
+        size: stats.size,
+      });
+
+      analysis.totalSize += stats.size;
+    }
+
+    return analysis;
+  }
+
   async copy(options: CopyOptions): Promise<CopyResult> {
     // 1. Find target paths
     const targetPaths = await this.findTargetPaths(options);
@@ -105,7 +152,7 @@ export class FileCopier {
           continue;
         }
 
-        await fs.promises.mkdir(path.dirname(targetFile), {recursive: true});
+        await fs.promises.mkdir(path.dirname(targetFile), { recursive: true });
         await fs.promises.copyFile(sourceFile, targetFile);
         result.copiedFiles.push(sourceFile);
       } catch (error) {
@@ -119,11 +166,12 @@ export class FileCopier {
   }
 
   private selectBestTargetPath(paths: PathInfo[]): PathInfo {
-    // Select the best path based on accessibility and score
+    // Select the path with highest score and accessibility
     return paths.reduce((best, current) => {
-      if (!best.isAccessible && current.isAccessible) return current;
-      if (best.isAccessible && !current.isAccessible) return best;
-      return current.score > best.score ? current : best;
+      if (!best || (current.isAccessible && current.score > best.score)) {
+        return current;
+      }
+      return best;
     });
   }
 }

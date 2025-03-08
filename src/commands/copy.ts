@@ -1,7 +1,7 @@
 import { Args, Flags } from '@oclif/core';
 
 import { FileCopier } from '../copy';
-import { CommandOptions, PathType } from '../types';
+import { PathType } from '../types';
 import { colors } from '../utils/colors';
 import { BaseCommand } from './base';
 
@@ -11,23 +11,15 @@ export default class CopyCommand extends BaseCommand {
   static aliases = ['cp'];
 
   static examples = [
-    '$ icloudy copy ./documents -t documents    # Copy local documents to iCloud Drive documents library',
-    '$ icloudy copy ./notes -t app -a Notes    # Copy local notes to Notes app iCloud storage',
-    '$ icloudy copy ./photos/*.jpg -t photos -r # Recursively copy all jpg photos to iCloud photos library',
+    '$ icloudy copy ./documents docs              # Copy local documents to iCloud Drive documents library',
+    '$ icloudy copy ./notes app Notes            # Copy local notes to Notes app iCloud storage',
+    '$ icloudy copy ./photos photos -r          # Recursively copy all files to iCloud photos library',
+    '$ icloudy copy ./data root -p "*.txt" -i   # Interactively copy txt files to iCloud root',
+    '$ icloudy copy ./backup docs -y            # Copy to documents library without confirmation',
   ];
 
   static flags = {
     ...BaseCommand.flags,
-    'target-type': Flags.string({
-      char: 't',
-      description: 'Target path type (root|app|photos|docs|other)',
-      required: true,
-    }),
-    'target-app': Flags.string({
-      char: 'a',
-      description: 'Target app name (required for app type)',
-      dependsOn: ['target-type'],
-    }),
     pattern: Flags.string({
       char: 'p',
       description: 'File pattern to match (default: *)',
@@ -44,12 +36,39 @@ export default class CopyCommand extends BaseCommand {
       char: 'd',
       description: 'Show what would be copied without actually copying',
     }),
+    interactive: Flags.boolean({
+      char: 'i',
+      description: 'Enable interactive confirmation for copy operations',
+      exclusive: ['yes'],
+    }),
+    yes: Flags.boolean({
+      char: 'y',
+      description: 'Skip all confirmations',
+      exclusive: ['interactive'],
+    }),
+    detailed: Flags.boolean({
+      char: 'D',
+      description: 'Show detailed information for copy operations',
+    }),
+    table: Flags.boolean({
+      char: 't',
+      description: 'Show results in table format',
+      dependsOn: ['detailed'],
+    }),
   };
 
   static args = {
     source: Args.string({
       description: 'Source path to copy from',
       required: true,
+    }),
+    type: Args.string({
+      description: 'Target path type (root|app|photos|docs)',
+      required: true,
+    }),
+    appName: Args.string({
+      description: 'App name (required for app type)',
+      required: false,
     }),
   };
 
@@ -61,26 +80,76 @@ export default class CopyCommand extends BaseCommand {
       // Set source path
       options.source = args.source;
 
-      // Convert target type
-      const type = flags['target-type'].toUpperCase();
+      // Convert type argument to PathType
+      const type = args.type.toUpperCase();
       if (type in PathType) {
         options.targetType = PathType[type as keyof typeof PathType];
       } else {
         this.error('Invalid target type');
       }
 
+      // Set app name if provided
+      if (args.appName) {
+        options.targetApp = args.appName;
+      }
+
       // Set additional options
-      options.targetApp = flags['target-app'];
       options.pattern = flags.pattern;
       options.recursive = flags.recursive || false;
       options.overwrite = flags.force || false;
       options.dryRun = flags['dry-run'] || false;
+      options.interactive = flags.interactive || false;
+      options.skipConfirmation = flags.yes || false;
+      options.detailed = flags.detailed || false;
+      options.tableFormat = flags.table || false;
 
       if (!options.silent) {
-        this.log(colors.info('Starting copy operation...'));
+        this.log(colors.info('Analyzing files to copy...'));
       }
 
       const fileCopier = new FileCopier();
+
+      // First, analyze what files would be copied
+      const analysis = await fileCopier.analyze({
+        source: options.source,
+        targetType: options.targetType,
+        targetApp: options.targetApp,
+        pattern: options.pattern,
+        recursive: options.recursive,
+      });
+
+      // Show analysis and get confirmation if needed
+      if (!options.skipConfirmation) {
+        if (options.detailed) {
+          if (options.tableFormat) {
+            this.displayTableOutput(analysis.files);
+          } else {
+            this.displayDetailedOutput(analysis);
+          }
+        } else {
+          this.log(colors.info(`Found ${analysis.files.length} files to copy:`));
+          analysis.files.forEach((file, index) => {
+            this.log(colors.formatProgress(index + 1, analysis.files.length, file.sourcePath));
+          });
+        }
+
+        if (options.interactive && !options.dryRun) {
+          const confirmed = await this.confirm('Do you want to proceed with the copy operation?');
+          if (!confirmed) {
+            this.log(colors.warning('Copy operation cancelled.'));
+            return;
+          }
+        }
+      }
+
+      if (options.dryRun) {
+        if (!options.silent) {
+          this.log(colors.info('Dry run completed. No files were copied.'));
+        }
+        return;
+      }
+
+      // Proceed with copy
       const result = await fileCopier.copy({
         source: options.source,
         targetType: options.targetType,
@@ -88,7 +157,6 @@ export default class CopyCommand extends BaseCommand {
         pattern: options.pattern,
         recursive: options.recursive,
         overwrite: options.overwrite,
-        dryRun: options.dryRun,
       });
 
       if (!result.success) {
@@ -96,21 +164,14 @@ export default class CopyCommand extends BaseCommand {
       }
 
       if (!options.silent) {
-        if (options.dryRun) {
-          this.log(colors.info('Dry run completed. Would copy:'));
-          result.copiedFiles.forEach((file, index) => {
-            this.log(colors.formatProgress(index + 1, result.copiedFiles.length, file));
+        this.log(
+          colors.formatSuccess(`Successfully copied ${result.copiedFiles.length} files to: ${result.targetPath}`),
+        );
+        if (result.failedFiles.length > 0) {
+          this.warn(colors.formatWarning(`Failed to copy ${result.failedFiles.length} files`));
+          result.failedFiles.forEach(file => {
+            this.warn(colors.warning(`  - ${file}`));
           });
-        } else {
-          this.log(
-            colors.formatSuccess(`Successfully copied ${result.copiedFiles.length} files to: ${result.targetPath}`),
-          );
-          if (result.failedFiles.length > 0) {
-            this.warn(colors.formatWarning(`Failed to copy ${result.failedFiles.length} files`));
-            result.failedFiles.forEach(file => {
-              this.warn(colors.warning(`  - ${file}`));
-            });
-          }
         }
       }
     } catch (error) {
@@ -118,75 +179,92 @@ export default class CopyCommand extends BaseCommand {
     }
   }
 
-  async getHelp(): Promise<string> {
-    return `Usage: icloudy copy [options] <source>
-
-Copy files to iCloud Drive.
-
-Options:
-  --target-type <type>    Target type (documents, app)
-  --target-app <app>      Target app name (required when target-type is app)
-  --dry-run              Show what would be copied without actually copying
-  --recursive            Copy directories recursively
-  --pattern <pattern>    File pattern to match (e.g. *.txt)
-  --force               Overwrite existing files
-  -h, --help           Show this help
-
-Examples:
-  $ icloudy copy ./myfile.txt --target-type documents
-  $ icloudy copy ./myapp/ --target-type app --target-app MyApp
-  $ icloudy copy ./docs/ --target-type documents --recursive
-  $ icloudy copy ./ --target-type documents --pattern "*.txt"`;
+  private async confirm(message: string): Promise<boolean> {
+    interface ConfirmResponse {
+      confirmed: boolean;
+    }
+    const response = await this.prompt<ConfirmResponse>({
+      type: 'confirm',
+      name: 'confirmed',
+      message,
+      default: false,
+    });
+    return response.confirmed;
   }
 
-  protected parseArgs(args: string[]): CommandOptions {
-    const options: CommandOptions = {
-      showHelp: args.includes('--help') || args.includes('-h'),
-      jsonOutput: args.includes('--json') || args.includes('-j'),
-      noColor: args.includes('--no-color') || args.includes('-n'),
-      silent: args.includes('--silent') || args.includes('-s'),
-      recursive: args.includes('--recursive') || args.includes('-r'),
-      force: args.includes('--force') || args.includes('-f'),
-      dryRun: args.includes('--dry-run'),
-    };
+  private displayTableOutput(files: Array<{ sourcePath: string; targetPath: string; size: number }>): void {
+    // Table format output using custom table formatter
+    this.log(colors.bold('\nFiles to be copied:'));
 
-    // Extract source and target type
-    const nonOptionArgs = args.filter(
-      arg =>
-        !arg.startsWith('-') && args[args.indexOf(arg) - 1] !== '--target-type' && args[args.indexOf(arg) - 1] !== '-t',
-    );
-    if (nonOptionArgs.length > 0) {
-      options.source = nonOptionArgs[0];
+    // Define column widths
+    const colWidths = [4, 45, 45, 15];
+    const totalWidth = colWidths.reduce((sum, width) => sum + width, 0) + colWidths.length + 1;
+
+    // Create separator line
+    const separator = colors.dim('─'.repeat(totalWidth));
+
+    // Create header row
+    const headerCells = [
+      colors.bold('#'),
+      colors.bold('Source'),
+      colors.bold('Target'),
+      colors.bold('Size'),
+    ];
+
+    // Print table header
+    this.log(separator);
+    this.log(this.formatTableRow(headerCells, colWidths));
+    this.log(separator);
+
+    // Create rows
+    files.forEach((file, index) => {
+      const row = this.formatTableRow([
+        colors.progress(String(index + 1)),
+        file.sourcePath,
+        file.targetPath,
+        this.formatFileSize(file.size),
+      ], colWidths);
+
+      this.log(row);
+    });
+
+    this.log(separator);
+  }
+
+  private displayDetailedOutput(analysis: { files: Array<{ sourcePath: string; targetPath: string; size: number }> }): void {
+    this.log(colors.bold('\nFiles to be copied:'));
+    analysis.files.forEach((file, index) => {
+      this.log(colors.bold(`\nFile #${index + 1}:`));
+      this.log(`  Source: ${file.sourcePath}`);
+      this.log(`  Target: ${file.targetPath}`);
+      this.log(`  Size: ${this.formatFileSize(file.size)}`);
+    });
+  }
+
+  private formatTableRow(cells: string[], colWidths: number[]): string {
+    let row = '│';
+    cells.forEach((cell, index) => {
+      const width = colWidths[index];
+      const padding = Math.max(0, width - this.stripAnsi(cell).length);
+      row += ` ${cell}${' '.repeat(padding)} │`;
+    });
+    return row;
+  }
+
+  private stripAnsi(str: string): string {
+    return str.replace(/\u001b\[\d+m/g, '');
+  }
+
+  private formatFileSize(bytes: number): string {
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let size = bytes;
+    let unitIndex = 0;
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
     }
 
-    // Find target type
-    const typeIndex = args.indexOf('--target-type');
-    if (typeIndex !== -1 && typeIndex + 1 < args.length) {
-      const type = args[typeIndex + 1].toLowerCase();
-      switch (type) {
-        case 'documents':
-          options.targetType = PathType.DOCS;
-          break;
-        case 'photos':
-          options.targetType = PathType.PHOTOS;
-          break;
-        case 'app':
-          options.targetType = PathType.APP;
-          break;
-        case 'root':
-          options.targetType = PathType.ROOT;
-          break;
-        default:
-          options.targetType = PathType.OTHER;
-      }
-    }
-
-    // Find pattern
-    const patternIndex = args.indexOf('--pattern') !== -1 ? args.indexOf('--pattern') : args.indexOf('-p');
-    if (patternIndex !== -1 && patternIndex + 1 < args.length) {
-      options.pattern = args[patternIndex + 1];
-    }
-
-    return options;
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
   }
 }

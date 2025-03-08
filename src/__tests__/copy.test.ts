@@ -1,44 +1,30 @@
 import * as fs from 'fs';
-import {vol} from 'memfs';
+import { minimatch } from 'minimatch';
 import * as path from 'path';
+import { vol } from 'memfs';
 
-import {FileCopier} from '../copy';
-import {findDrivePaths} from '../locate';
-import {PathType} from '../types';
+import { FileCopier } from '../copy';
+import { findDrivePaths } from '../locate';
+import { PathType } from '../types';
 
-// Mock dependencies
 jest.mock('../locate');
 jest.mock('fs', () => {
-  const actualFs = jest.requireActual('fs');
   const memfs = require('memfs');
   return {
-    ...actualFs,
-    existsSync: (path: string) => memfs.vol.existsSync(path),
-    readdirSync: (path: string) => memfs.vol.readdirSync(path),
-    statSync: (path: string) => memfs.vol.statSync(path),
-    promises: {
-      ...actualFs.promises,
-      mkdir: (path: string, options: any) => memfs.vol.promises.mkdir(path, options),
-      copyFile: (src: string, dest: string) => memfs.vol.promises.copyFile(src, dest),
-    },
+    ...memfs.fs,
+    promises: memfs.fs.promises,
+    existsSync: memfs.vol.existsSync.bind(memfs.vol),
+    statSync: memfs.vol.statSync.bind(memfs.vol),
+    readdirSync: memfs.vol.readdirSync.bind(memfs.vol),
   };
 });
 
-jest.mock('minimatch', () => ({
-  minimatch: (filename: string, pattern: string) => {
-    if (pattern === '*') return true;
-    const extension = pattern.replace('*.', '');
-    return filename.endsWith(extension);
-  },
-}));
-
-// Mock path module for cross-platform compatibility
 jest.mock('path', () => {
-  const actualPath = jest.requireActual('path');
+  const originalPath = jest.requireActual('path');
   return {
-    ...actualPath,
-    sep: '/',
+    ...originalPath,
     join: (...args: string[]) => args.join('/'),
+    relative: (from: string, to: string) => to.replace(from + '/', ''),
   };
 });
 
@@ -81,7 +67,7 @@ describe('FileCopier', () => {
     it('should successfully copy a single file', async () => {
       // Setup virtual file system
       const fileContent = 'test content';
-      vol.mkdirSync(mockSourcePath, {recursive: true});
+      vol.mkdirSync(mockSourcePath, { recursive: true });
       vol.writeFileSync(path.join(mockSourcePath, 'file1.txt'), fileContent);
 
       const result = await fileCopier.copy(mockOptions);
@@ -98,12 +84,12 @@ describe('FileCopier', () => {
     });
 
     it('should handle recursive directory copy', async () => {
-      const recursiveOptions = {...mockOptions, recursive: true};
+      const recursiveOptions = { ...mockOptions, recursive: true };
 
       // Setup virtual file system with nested structure
       // First create the directory structure
-      vol.mkdirSync(path.join(mockSourcePath), {recursive: true});
-      vol.mkdirSync(path.join(mockSourcePath, 'dir1'), {recursive: true});
+      vol.mkdirSync(path.join(mockSourcePath), { recursive: true });
+      vol.mkdirSync(path.join(mockSourcePath, 'dir1'), { recursive: true });
 
       // Then create the files
       vol.writeFileSync(path.join(mockSourcePath, 'file1.txt'), 'content1');
@@ -130,10 +116,10 @@ describe('FileCopier', () => {
     });
 
     it('should handle file pattern matching', async () => {
-      const patternOptions = {...mockOptions, pattern: '*.txt'};
+      const patternOptions = { ...mockOptions, pattern: '*.txt' };
 
       // Setup virtual file system
-      vol.mkdirSync(mockSourcePath, {recursive: true});
+      vol.mkdirSync(mockSourcePath, { recursive: true });
       vol.writeFileSync(path.join(mockSourcePath, 'file1.txt'), 'content1');
       vol.writeFileSync(path.join(mockSourcePath, 'file2.doc'), 'content2');
 
@@ -150,7 +136,7 @@ describe('FileCopier', () => {
 
     it('should handle copy errors', async () => {
       // Setup virtual file system with a read-only file
-      vol.mkdirSync(mockSourcePath, {recursive: true});
+      vol.mkdirSync(mockSourcePath, { recursive: true });
       vol.writeFileSync(path.join(mockSourcePath, 'file1.txt'), 'content');
 
       // Mock copyFile to throw an error
@@ -166,10 +152,10 @@ describe('FileCopier', () => {
     });
 
     it('should handle dry run mode', async () => {
-      const dryRunOptions = {...mockOptions, dryRun: true};
+      const dryRunOptions = { ...mockOptions, dryRun: true };
 
       // Setup virtual file system
-      vol.mkdirSync(mockSourcePath, {recursive: true});
+      vol.mkdirSync(mockSourcePath, { recursive: true });
       vol.writeFileSync(path.join(mockSourcePath, 'file1.txt'), 'content');
 
       const result = await fileCopier.copy(dryRunOptions);
@@ -179,6 +165,101 @@ describe('FileCopier', () => {
 
       // Verify no files were actually copied
       expect(vol.existsSync(path.join(mockTargetPath, 'file1.txt'))).toBe(false);
+    });
+  });
+
+  describe('analyze', () => {
+    const mockOptions = {
+      source: mockSourcePath,
+      targetType: 'documents' as PathType,
+      targetApp: undefined,
+      pattern: undefined,
+      recursive: false,
+    };
+
+    it('should analyze a single file', async () => {
+      // Setup virtual file system
+      const fileContent = 'test content';
+      vol.mkdirSync(mockSourcePath, { recursive: true });
+      vol.writeFileSync(path.join(mockSourcePath, 'file1.txt'), fileContent);
+
+      const analysis = await fileCopier.analyze(mockOptions);
+
+      expect(analysis.files).toHaveLength(1);
+      expect(analysis.files[0]).toMatchObject({
+        sourcePath: path.join(mockSourcePath, 'file1.txt'),
+        targetPath: path.join(mockTargetPath, 'file1.txt'),
+        size: expect.any(Number),
+      });
+      expect(analysis.totalSize).toBe(analysis.files[0].size);
+      expect(analysis.targetPath).toBe(mockTargetPath);
+    });
+
+    it('should analyze files with pattern matching', async () => {
+      const patternOptions = { ...mockOptions, pattern: '*.txt' };
+
+      // Setup virtual file system
+      vol.mkdirSync(mockSourcePath, { recursive: true });
+      vol.writeFileSync(path.join(mockSourcePath, 'file1.txt'), 'content1');
+      vol.writeFileSync(path.join(mockSourcePath, 'file2.doc'), 'content2');
+
+      const analysis = await fileCopier.analyze(patternOptions);
+
+      expect(analysis.files).toHaveLength(1);
+      expect(analysis.files[0].sourcePath).toBe(path.join(mockSourcePath, 'file1.txt'));
+      expect(analysis.files).not.toContainEqual(
+        expect.objectContaining({
+          sourcePath: path.join(mockSourcePath, 'file2.doc'),
+        }),
+      );
+    });
+
+    it('should analyze directories recursively', async () => {
+      const recursiveOptions = { ...mockOptions, recursive: true };
+
+      // Setup virtual file system with nested structure
+      vol.mkdirSync(path.join(mockSourcePath), { recursive: true });
+      vol.mkdirSync(path.join(mockSourcePath, 'dir1'), { recursive: true });
+      vol.writeFileSync(path.join(mockSourcePath, 'file1.txt'), 'content1');
+      vol.writeFileSync(path.join(mockSourcePath, 'dir1/file2.txt'), 'content2');
+
+      const analysis = await fileCopier.analyze(recursiveOptions);
+
+      expect(analysis.files).toHaveLength(2);
+      expect(analysis.files).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            sourcePath: path.join(mockSourcePath, 'file1.txt'),
+            targetPath: path.join(mockTargetPath, 'file1.txt'),
+          }),
+          expect.objectContaining({
+            sourcePath: path.join(mockSourcePath, 'dir1/file2.txt'),
+            targetPath: path.join(mockTargetPath, 'dir1/file2.txt'),
+          }),
+        ]),
+      );
+      expect(analysis.totalSize).toBe(
+        analysis.files.reduce((total, file) => total + file.size, 0),
+      );
+    });
+
+    it('should handle no matching files', async () => {
+      const patternOptions = { ...mockOptions, pattern: '*.xyz' };
+
+      // Setup virtual file system
+      vol.mkdirSync(mockSourcePath, { recursive: true });
+      vol.writeFileSync(path.join(mockSourcePath, 'file1.txt'), 'content');
+
+      const analysis = await fileCopier.analyze(patternOptions);
+
+      expect(analysis.files).toHaveLength(0);
+      expect(analysis.totalSize).toBe(0);
+    });
+
+    it('should throw error when no valid target path found', async () => {
+      (findDrivePaths as jest.Mock).mockResolvedValueOnce([]);
+
+      await expect(fileCopier.analyze(mockOptions)).rejects.toThrow('No valid target path found');
     });
   });
 });

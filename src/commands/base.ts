@@ -1,6 +1,14 @@
-import {Command, Flags} from '@oclif/core';
+import { confirm } from '@inquirer/prompts';
+import { Command, Flags } from '@oclif/core';
 
-import {CommandOptions} from '../types';
+import { CommandOptions } from '../types';
+
+export interface PromptOptions {
+  type: string;
+  name: string;
+  message: string;
+  default?: boolean;
+}
 
 export abstract class BaseCommand extends Command {
   static id = 'base';
@@ -8,10 +16,10 @@ export abstract class BaseCommand extends Command {
   static aliases: string[] = [];
 
   static flags = {
-    help: Flags.help({char: 'h'}),
-    json: Flags.boolean({char: 'j', description: 'Output in JSON format'}),
-    'no-color': Flags.boolean({char: 'n', description: 'Disable colorized output'}),
-    silent: Flags.boolean({char: 's', description: 'Suppress all output except errors'}),
+    help: Flags.help({ char: 'h' }),
+    json: Flags.boolean({ char: 'j', description: 'Output in JSON format' }),
+    'no-color': Flags.boolean({ char: 'n', description: 'Disable colorized output' }),
+    silent: Flags.boolean({ char: 's', description: 'Suppress all output except errors' }),
   };
 
   async getHelp(): Promise<string> {
@@ -34,5 +42,11 @@ export abstract class BaseCommand extends Command {
       this.error(error instanceof Error ? error.message : String(error));
     }
     this.exit(1);
+  }
+
+  protected async prompt<T extends { confirmed: boolean }>(options: string | PromptOptions): Promise<T> {
+    const message = typeof options === 'string' ? options : options.message;
+    const confirmed = await confirm({ message });
+    return { confirmed } as T;
   }
 }
