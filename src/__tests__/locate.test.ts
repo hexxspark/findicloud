@@ -53,7 +53,6 @@ const os = require('os');
 describe('DriveLocator', () => {
   let lister: DriveLocator;
 
-
   describe('findPaths', () => {
     beforeEach(() => {
       os.platform.mockReturnValue('darwin');
@@ -63,71 +62,69 @@ describe('DriveLocator', () => {
       const testFiles = {
         // Root iCloud Drive directory
         '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/.icloud': '',
-        
+
         // App data
         '/Users/testuser/Library/Mobile Documents/iCloud~com~testapp/data.txt': 'test content',
         '/Users/testuser/Library/Mobile Documents/iCloud~com~testapp/Documents/config.json': 'config',
-        
+
         // Photos directory structure
         '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos': null,
         '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos/vacation.jpg': 'photo content',
         '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos/family.jpg': 'photo content',
-        
+
         // Documents
         '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Documents/report.doc': 'document content',
         '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Documents/notes.txt': 'notes content',
       };
-      
+
       vol.fromJSON(testFiles);
-      
+
       lister = new DriveLocator();
     });
-    
+
     it('should find app data', async () => {
       const results = await lister.findPaths({
         type: PathType.APP,
-        appName: 'TestApp'
+        appName: 'TestApp',
       });
-      
+
       expect(results.length).toBeGreaterThan(0);
       expect(results.every(r => r.type === PathType.APP)).toBe(true);
-      expect(results.every(r => 
-        r.metadata.appName?.toLowerCase().includes('testapp'.toLowerCase())
-      )).toBe(true);
+      expect(results.every(r => r.metadata.appName?.toLowerCase().includes('testapp'.toLowerCase()))).toBe(true);
     });
 
     it('should find photos', async () => {
       const results = await lister.findPaths({
-        type: PathType.PHOTOS
+        type: PathType.PHOTOS,
       });
-      
+
       expect(results.length).toBeGreaterThan(0);
       expect(results.every(r => r.type === PathType.PHOTOS)).toBe(true);
     });
 
     it('should find documents', async () => {
       const results = await lister.findPaths({
-        type: PathType.DOCS
+        type: PathType.DOCS,
       });
-      
+
       expect(results.length).toBeGreaterThan(0);
       expect(results.every(r => r.type === PathType.DOCS)).toBe(true);
     });
 
     it('should filter inaccessible paths', async () => {
       const results = await lister.findPaths({
-        includeInaccessible: false
+        includeInaccessible: false,
       });
-      
+
       expect(results.every(r => r.isAccessible)).toBe(true);
     });
 
     it('should filter by minimum score', async () => {
       const minScore = 50;
       const results = await lister.findPaths({
-        minScore
+        minScore,
       });
-      
+
       expect(results.every(r => r.score >= minScore)).toBe(true);
     });
 

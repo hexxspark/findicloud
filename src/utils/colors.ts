@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+
 import {PathInfo, PathType} from '../types';
 
 // Global color control
@@ -16,7 +17,7 @@ export const colorTheme = {
   command: chalk.cyan,
   option: chalk.green,
   param: chalk.yellow,
-  
+
   // Path type colors
   pathType: {
     [PathType.APP]: chalk.magenta,
@@ -25,21 +26,21 @@ export const colorTheme = {
     [PathType.ROOT]: chalk.green,
     [PathType.OTHER]: chalk.gray,
   },
-  
+
   // Status colors
   success: chalk.green,
   error: chalk.red,
   warning: chalk.yellow,
   info: chalk.blue,
-  
+
   // Helper colors
   dim: chalk.dim,
   bold: chalk.bold,
-  
+
   // Progress colors
   progress: chalk.cyan,
   highlight: chalk.magenta,
-  
+
   // Additional semantic colors
   modified: chalk.yellow,
   added: chalk.green,
@@ -57,32 +58,39 @@ export const colors = {
   command: (text: string) => withColor(colorTheme.command, text),
   option: (text: string) => withColor(colorTheme.option, text),
   param: (text: string) => withColor(colorTheme.param, text),
-  
-  pathType: Object.entries(colorTheme.pathType).reduce((acc, [key, colorFn]) => {
-    acc[key as PathType] = (text: string) => withColor(colorFn, text);
-    return acc;
-  }, {} as Record<PathType, (text: string) => string>),
-  
+
+  pathType: Object.entries(colorTheme.pathType).reduce(
+    (acc, [key, colorFn]) => {
+      acc[key as PathType] = (text: string) => withColor(colorFn, text);
+      return acc;
+    },
+    {} as Record<PathType, (text: string) => string>,
+  ),
+
   success: (text: string) => withColor(colorTheme.success, text),
   error: (text: string) => withColor(colorTheme.error, text),
   warning: (text: string) => withColor(colorTheme.warning, text),
   info: (text: string) => withColor(colorTheme.info, text),
-  
+
   dim: (text: string) => withColor(colorTheme.dim, text),
   bold: (text: string) => withColor(colorTheme.bold, text),
-  
+
   progress: (text: string) => withColor(colorTheme.progress, text),
   highlight: (text: string) => withColor(colorTheme.highlight, text),
-  
+
   // Format functions
   formatPath: (pathInfo: PathInfo, noColor = false): string => {
     const useColor = colorEnabled && !noColor;
-    
-    const typeColor = useColor ? (colors.pathType[pathInfo.type] || colors.dim) : ((text: string) => text);
+
+    const typeColor = useColor ? colors.pathType[pathInfo.type] || colors.dim : (text: string) => text;
     const accessibility = useColor
-      ? (pathInfo.isAccessible ? colors.success('✓') : colors.error('✗'))
-      : (pathInfo.isAccessible ? '✓' : '✗');
-    
+      ? pathInfo.isAccessible
+        ? colors.success('✓')
+        : colors.error('✗')
+      : pathInfo.isAccessible
+        ? '✓'
+        : '✗';
+
     let details = '';
     if (pathInfo.type === PathType.APP && pathInfo.metadata.appName) {
       details = useColor ? colors.dim(` (${pathInfo.metadata.appName})`) : ` (${pathInfo.metadata.appName})`;
@@ -96,7 +104,7 @@ export const colors = {
 
   formatHelp: (text: string): string => {
     if (!colorEnabled) return text;
-    
+
     return text
       .replace(/^Usage:.+/gm, m => colors.bold(m))
       .replace(/\s+(-[a-z],\s)?--[a-z-]+/g, m => colors.option(m))
@@ -116,11 +124,11 @@ export const colors = {
   formatWarning: (message: string): string => {
     return colorEnabled ? `${colors.warning('Warning:')} ${message}` : `Warning: ${message}`;
   },
-  
+
   formatProgress: (current: number, total: number, message: string): string => {
     if (!colorEnabled) {
       return `[${current}/${total}] ${message}`;
     }
     return `${colors.progress(`[${current}/${total}]`)} ${message}`;
-  }
-}; 
+  },
+};

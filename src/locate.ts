@@ -23,7 +23,7 @@ export class DriveLocator {
   async findPaths(options?: SearchOptions): Promise<PathInfo[]> {
     const defaultOptions: SearchOptions = {
       includeInaccessible: false,
-      minScore: 0
+      minScore: 0,
     };
 
     const finalOptions = {...defaultOptions, ...options};
@@ -94,4 +94,4 @@ export async function findDrivePaths(options?: SearchOptions): Promise<PathInfo[
     throw new Error('Unsupported platform: ' + process.platform);
   }
   return await iCloudDriveLocator.findPaths(options);
-} 
+}

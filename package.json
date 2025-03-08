@@ -15,7 +15,7 @@
     "pull"
   ],
   "bin": {
-    "icloudy": "bin/run"
+    "icloudy": "./bin/run"
   },
   "types": "./dist/types/index.d.ts",
   "main": "./dist/cjs/index.js",
@@ -50,7 +50,10 @@
     "eslint:fix": "pnpm eslint --fix",
     "prettier:cli": "prettier \"**/*.ts\" \"**/*.md\"",
     "prettier:check": "pnpm prettier:cli --check",
-    "prettier:fix": "pnpm prettier:cli --write"
+    "prettier:fix": "pnpm prettier:cli --write",
+    "prepack": "pnpm build",
+    "postpack": "del-cli oclif.manifest.json",
+    "manifest": "oclif manifest"
   },
   "dependencies": {
     "chalk": "^4.1.2",
@@ -58,6 +61,10 @@
   },
   "devDependencies": {
     "@jest/console": "^29.7.0",
+    "@oclif/core": "^3.27.0",
+    "@oclif/plugin-help": "^6.2.26",
+    "@oclif/plugin-plugins": "^4.3.10",
+    "@oclif/test": "^3.2.15",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.13.9",
     "@typescript-eslint/eslint-plugin": "^8.26.0",
@@ -82,6 +89,24 @@
     "tsup": "^8.4.0",
     "typescript": "^5.8.2"
   },
+  "oclif": {
+    "bin": "icloudy",
+    "dirname": "icloudy",
+    "commands": "./dist/commands",
+    "plugins": [
+      "@oclif/plugin-help",
+      "@oclif/plugin-plugins"
+    ],
+    "topicSeparator": " ",
+    "topics": {
+      "locate": {
+        "description": "Locate iCloud Drive paths and files"
+      },
+      "copy": {
+        "description": "Copy files to iCloud Drive"
+      }
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -98,6 +123,8 @@
     "README.md",
     "dist",
     "src",
+    "bin",
+    "oclif.manifest.json",
     "!*/__tests__"
   ],
   "packageManager": "pnpm@10.6.1",

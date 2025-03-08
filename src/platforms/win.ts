@@ -1,6 +1,6 @@
 import {execSync} from 'child_process';
 import * as fs from 'fs';
-import {join, basename} from 'path';
+import {basename, join} from 'path';
 
 import {BasePathFinder} from '../base';
 import {PathInfo, PathMetadata, PathSource, PathType} from '../types';

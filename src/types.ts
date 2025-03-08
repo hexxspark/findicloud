@@ -24,7 +24,7 @@ export enum PathType {
   PHOTOS = 'photos',
   DOCS = 'docs',
   ROOT = 'root',
-  OTHER = 'other'
+  OTHER = 'other',
 }
 
 export interface PathMetadata {

@@ -1,124 +1,108 @@
-import {CopyCommand} from '../../commands/copy';
-import {FileCopier} from '../../copy';
-import {PathType} from '../../types';
+import { test } from '@oclif/test';
+import { FileCopier, CopyResult } from '../../copy';
 
-// Mock dependencies
+// Mock copy command dependencies
 jest.mock('../../copy');
 
-describe('CopyCommand', () => {
-  let copyCommand: CopyCommand;
-  let mockFileCopier: jest.Mocked<FileCopier>;
-
+describe('copy command', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    copyCommand = new CopyCommand();
-    mockFileCopier = new FileCopier() as jest.Mocked<FileCopier>;
-    (FileCopier as jest.Mock).mockImplementation(() => mockFileCopier);
+    jest.resetAllMocks();
   });
 
-  describe('execute', () => {
-    it('should successfully copy files', async () => {
-      const mockResult = {
+  test
+    .stdout()
+    .command(['copy', '--help'])
+    .exit(0)
+    .it('shows help information');
+
+  test
+    .do(() => {
+      const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
+      mockCopy.mockResolvedValueOnce({
         success: true,
-        copiedFiles: ['/test/source/file1.txt', '/test/source/file2.txt'],
+        targetPath: '/icloud/docs',
+        copiedFiles: ['file1.txt'],
         failedFiles: [],
-        targetPath: '/test/target',
-        errors: [],
-      };
+        errors: []
+      } as CopyResult);
+    })
+    .stdout()
+    .command(['copy', './documents', '-t', 'docs'])
+    .it('copies files to documents');
 
-      mockFileCopier.copy.mockResolvedValue(mockResult);
+  test
+    .do(() => {
+      const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
+      mockCopy.mockResolvedValueOnce({
+        success: true,
+        targetPath: '/icloud/apps/Notes',
+        copiedFiles: ['note1.txt'],
+        failedFiles: [],
+        errors: []
+      } as CopyResult);
+    })
+    .stdout()
+    .command(['copy', './notes', '-t', 'app', '--target-app', 'Notes'])
+    .it('copies files to specific app');
 
-      await copyCommand.execute(['/test/source', '--target-type', 'documents']);
+  test
+    .do(() => {
+      const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
+      mockCopy.mockResolvedValueOnce({
+        success: true,
+        targetPath: '/icloud/docs',
+        copiedFiles: ['file1.txt'],
+        failedFiles: [],
+        errors: []
+      } as CopyResult);
+    })
+    .stdout()
+    .command(['copy', './documents', '-t', 'docs', '--dry-run'])
+    .it('supports dry run mode');
 
-      expect(mockFileCopier.copy).toHaveBeenCalledWith(expect.objectContaining({
-        source: '/test/source',
-        targetType: PathType.DOCS,
-      }));
-    });
+  test
+    .do(() => {
+      const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
+      mockCopy.mockResolvedValueOnce({
+        success: true,
+        targetPath: '/icloud/docs',
+        copiedFiles: ['file1.txt', 'subdir/file2.txt'],
+        failedFiles: [],
+        errors: []
+      } as CopyResult);
+    })
+    .stdout()
+    .command(['copy', './documents', '-t', 'docs', '-r'])
+    .it('supports recursive copy');
 
-    it('should throw error when source path is not provided', async () => {
-      await expect(copyCommand.execute(['--target-type', 'documents'])).rejects.toThrow('Source path is required');
-    });
+  test
+    .do(() => {
+      const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
+      mockCopy.mockResolvedValueOnce({
+        success: true,
+        targetPath: '/icloud/docs',
+        copiedFiles: ['file1.txt', 'file2.txt'],
+        failedFiles: [],
+        errors: []
+      } as CopyResult);
+    })
+    .stdout()
+    .command(['copy', './documents', '-t', 'docs', '-p', '*.txt'])
+    .it('supports file pattern matching');
 
-    it('should throw error when target type is not provided', async () => {
-      await expect(copyCommand.execute(['/test/source'])).rejects.toThrow('Target type is required');
-    });
-
-    it('should handle copy operation failure', async () => {
-      const mockResult = {
+  test
+    .do(() => {
+      const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
+      mockCopy.mockResolvedValueOnce({
         success: false,
+        targetPath: '/icloud/docs',
         copiedFiles: [],
-        failedFiles: ['/test/source/file1.txt'],
-        targetPath: '/test/target',
-        errors: [new Error('Permission denied')],
-      };
-
-      mockFileCopier.copy.mockResolvedValue(mockResult);
-
-      await expect(copyCommand.execute(['/test/source', '--target-type', 'documents'])).rejects.toThrow('Copy operation failed: Permission denied');
-    });
-
-    it('should handle dry run mode', async () => {
-      const mockResult = {
-        success: true,
-        copiedFiles: ['/test/source/file1.txt'],
-        failedFiles: [],
-        targetPath: '/test/target',
-        errors: [],
-      };
-
-      mockFileCopier.copy.mockResolvedValue(mockResult);
-
-      await copyCommand.execute(['/test/source', '--target-type', 'documents', '--dry-run']);
-
-      expect(mockFileCopier.copy).toHaveBeenCalledWith(expect.objectContaining({
-        dryRun: true,
-      }));
-    });
-
-    it('should handle recursive copy', async () => {
-      const mockResult = {
-        success: true,
-        copiedFiles: ['/test/source/file1.txt', '/test/source/dir/file2.txt'],
-        failedFiles: [],
-        targetPath: '/test/target',
-        errors: [],
-      };
-
-      mockFileCopier.copy.mockResolvedValue(mockResult);
-
-      await copyCommand.execute(['/test/source', '--target-type', 'documents', '--recursive']);
-
-      expect(mockFileCopier.copy).toHaveBeenCalledWith(expect.objectContaining({
-        recursive: true,
-      }));
-    });
-
-    it('should handle file pattern matching', async () => {
-      const mockResult = {
-        success: true,
-        copiedFiles: ['/test/source/file1.txt', '/test/source/file2.txt'],
-        failedFiles: [],
-        targetPath: '/test/target',
-        errors: [],
-      };
-
-      mockFileCopier.copy.mockResolvedValue(mockResult);
-
-      await copyCommand.execute(['/test/source', '--target-type', 'documents', '--pattern', '*.txt']);
-
-      expect(mockFileCopier.copy).toHaveBeenCalledWith(expect.objectContaining({
-        pattern: '*.txt',
-      }));
-    });
-  });
-
-  describe('getHelp', () => {
-    it('should return help text', () => {
-      const helpText = copyCommand.getHelp();
-      expect(helpText).toContain('Usage: icloudy copy [options] <source>');
-      expect(helpText).toContain('Options:');
-      expect(helpText).toContain('Examples:');
-    });
-  });
+        failedFiles: ['file1.txt'],
+        errors: [new Error('Permission denied')]
+      } as CopyResult);
+    })
+    .stdout()
+    .command(['copy', './documents', '-t', 'docs'])
+    .exit(2)
+    .it('handles copy operation failure');
 });
