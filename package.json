@@ -15,7 +15,7 @@
     "pull"
   ],
   "bin": {
-    "icloudy": "bin/icloudy"
+    "icloudy": "bin/run"
   },
   "types": "./dist/types/index.d.ts",
   "main": "./dist/cjs/index.js",
