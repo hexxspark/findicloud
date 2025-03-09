@@ -1,56 +1,83 @@
 import chalk from 'chalk';
 
-import {PathInfo, PathType} from '../types';
+import { PathInfo, PathType } from '../types';
 
 // Global color control
 let colorEnabled = true;
 
-export const setColorEnabled = (enabled: boolean) => {
-  colorEnabled = enabled;
-  // Force chalk to respect our color setting
-  chalk.level = enabled ? 3 : 0;
+// ANSI color codes
+const ansiCodes = {
+  reset: '\u001b[0m',
+  // Basic colors
+  red: '\u001b[31m',
+  green: '\u001b[32m',
+  yellow: '\u001b[33m',
+  blue: '\u001b[34m',
+  magenta: '\u001b[35m',
+  cyan: '\u001b[36m',
+  gray: '\u001b[90m',
+  // Bright colors
+  brightRed: '\u001b[91m',
+  brightGreen: '\u001b[92m',
+  brightYellow: '\u001b[93m',
+  brightBlue: '\u001b[94m',
+  brightMagenta: '\u001b[95m',
+  brightCyan: '\u001b[96m',
+  // Styles
+  bold: '\u001b[1m',
+  dim: '\u001b[2m',
 };
 
 // Color theme configuration
-export const colorTheme = {
+const colorTheme = {
   // Command and options colors
-  command: chalk.cyan,
-  option: chalk.green,
-  param: chalk.yellow,
+  command: (text: string) => `${ansiCodes.cyan}${text}${ansiCodes.reset}`,
+  option: (text: string) => `${ansiCodes.green}${text}${ansiCodes.reset}`,
+  param: (text: string) => `${ansiCodes.yellow}${text}${ansiCodes.reset}`,
 
   // Path type colors
   pathType: {
-    [PathType.APP]: chalk.magenta,
-    [PathType.PHOTOS]: chalk.blue,
-    [PathType.DOCS]: chalk.yellow,
-    [PathType.ROOT]: chalk.green,
-    [PathType.OTHER]: chalk.gray,
+    [PathType.APP]: (text: string) => `${ansiCodes.magenta}${text}${ansiCodes.reset}`,
+    [PathType.PHOTOS]: (text: string) => `${ansiCodes.blue}${text}${ansiCodes.reset}`,
+    [PathType.DOCS]: (text: string) => `${ansiCodes.yellow}${text}${ansiCodes.reset}`,
+    [PathType.ROOT]: (text: string) => `${ansiCodes.green}${text}${ansiCodes.reset}`,
+    [PathType.OTHER]: (text: string) => `${ansiCodes.gray}${text}${ansiCodes.reset}`,
   },
 
   // Status colors
-  success: chalk.green,
-  error: chalk.red,
-  warning: chalk.yellow,
-  info: chalk.blue,
+  success: (text: string) => `${ansiCodes.green}${text}${ansiCodes.reset}`,
+  error: (text: string) => `${ansiCodes.red}${text}${ansiCodes.reset}`,
+  warning: (text: string) => `${ansiCodes.yellow}${text}${ansiCodes.reset}`,
+  info: (text: string) => `${ansiCodes.blue}${text}${ansiCodes.reset}`,
 
   // Helper colors
-  dim: chalk.dim,
-  bold: chalk.bold,
+  dim: (text: string) => `${ansiCodes.dim}${text}${ansiCodes.reset}`,
+  bold: (text: string) => `${ansiCodes.bold}${text}${ansiCodes.reset}`,
 
   // Progress colors
-  progress: chalk.cyan,
-  highlight: chalk.magenta,
+  progress: (text: string) => `${ansiCodes.cyan}${text}${ansiCodes.reset}`,
+  highlight: (text: string) => `${ansiCodes.magenta}${text}${ansiCodes.reset}`,
 
   // Additional semantic colors
-  modified: chalk.yellow,
-  added: chalk.green,
-  deleted: chalk.red,
-  unchanged: chalk.gray,
+  modified: (text: string) => `${ansiCodes.yellow}${text}${ansiCodes.reset}`,
+  added: (text: string) => `${ansiCodes.green}${text}${ansiCodes.reset}`,
+  deleted: (text: string) => `${ansiCodes.red}${text}${ansiCodes.reset}`,
+  unchanged: (text: string) => `${ansiCodes.gray}${text}${ansiCodes.reset}`,
+};
+
+export const setColorEnabled = (enabled: boolean) => {
+  colorEnabled = enabled;
+  chalk.level = enabled ? 3 : 0;
 };
 
 // Color wrapper function
 const withColor = (colorFn: (text: string) => string, text: string): string => {
-  return colorEnabled ? colorFn(text) : text;
+  if (!colorEnabled) return text;
+  try {
+    return colorFn(text);
+  } catch {
+    return text;
+  }
 };
 
 export const colors = {
@@ -99,7 +126,9 @@ export const colors = {
       }
     }
 
-    return `${accessibility} ${pathInfo.path} ${typeColor(`[${pathInfo.type}]`)}${details}`;
+    // Convert path type to uppercase for display
+    const displayType = pathInfo.type.toUpperCase();
+    return `${accessibility} ${pathInfo.path} ${typeColor(`[${displayType}]`)}${details}`;
   },
 
   formatHelp: (text: string): string => {

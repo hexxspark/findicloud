@@ -144,8 +144,17 @@ export class FileCopier {
 
     for (const sourceFile of sourceFiles) {
       try {
-        const relativePath = path.relative(options.source, sourceFile);
-        const targetFile = path.join(targetPath.path, relativePath);
+        let targetFile: string;
+        const stats = await fs.promises.stat(sourceFile);
+
+        if (stats.isFile()) {
+          // If source is a single file, just use its basename
+          targetFile = path.join(targetPath.path, path.basename(sourceFile));
+        } else {
+          // If source is within a directory, maintain directory structure
+          const relativePath = path.relative(options.source, sourceFile);
+          targetFile = path.join(targetPath.path, relativePath);
+        }
 
         if (options.dryRun) {
           result.copiedFiles.push(sourceFile);

@@ -1,9 +1,9 @@
-import {Args, Flags} from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 
-import {findDrivePaths} from '../locate';
-import {CommandOptions, PathInfo, PathType} from '../types';
-import {colors} from '../utils/colors';
-import {BaseCommand} from './base';
+import { findDrivePaths } from '../locate';
+import { CommandOptions, PathInfo, PathType } from '../types';
+import { colors } from '../utils/colors';
+import { BaseCommand } from './base';
 
 export default class LocateCommand extends BaseCommand {
   static id = 'locate';
@@ -55,7 +55,7 @@ export default class LocateCommand extends BaseCommand {
   };
 
   public async run(): Promise<void> {
-    const {args, flags} = await this.parse(LocateCommand);
+    const { args, flags } = await this.parse(LocateCommand);
     const options = this.getCommandOptions(flags);
 
     try {
@@ -135,7 +135,7 @@ export default class LocateCommand extends BaseCommand {
         });
       }
     } catch (error) {
-      this.handleError(error, options.silent);
+      this.handleError(error, options.silent, 1);
     }
   }
 

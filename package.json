@@ -42,7 +42,7 @@
     "clean": "del-cli dist *.tsbuildinfo",
     "test": "pnpm run jest",
     "jest": "jest --runInBand --coverage",
-    "cli": "pnpm build && node dist/cli.cjs",
+    "dev": "pnpm build && node ./bin/run",
     "release": "release-it",
     "lint": "pnpm prettier:check && pnpm eslint",
     "lint:fix": "pnpm prettier:fix && pnpm eslint:fix",

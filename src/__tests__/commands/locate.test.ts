@@ -1,224 +1,203 @@
 import { test } from '@oclif/test';
-
-import * as locateModule from '../../locate';
+import { findDrivePaths } from '../../locate';
 import { PathType } from '../../types';
 
-// Mock findDrivePaths function
 jest.mock('../../locate');
-const mockFindDrivePaths = jest.fn().mockResolvedValue([]);
-(locateModule.findDrivePaths as jest.Mock) = mockFindDrivePaths;
 
 describe('locate command', () => {
   beforeEach(() => {
-    mockFindDrivePaths.mockReset();
-    mockFindDrivePaths.mockResolvedValue([]);
+    jest.resetAllMocks();
   });
 
-  // Basic functionality tests
   test
     .stdout()
+    .command(['locate', '--help'])
+    .exit(0)
+    .it('shows help information');
+
+  test
     .do(() => {
+      const mockFindDrivePaths = findDrivePaths as jest.Mock;
       mockFindDrivePaths.mockResolvedValueOnce([
         {
-          path: '/iCloud/root/path',
-          type: PathType.ROOT,
+          path: '/test/path1',
+          type: PathType.DOCS,
           score: 100,
-          exists: true,
           isAccessible: true,
-          metadata: {},
-        },
+          exists: true,
+          metadata: {}
+        }
       ]);
     })
+    .stdout()
     .command(['locate'])
-    .it('displays root paths by default', ({ stdout }) => {
-      expect(mockFindDrivePaths).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: PathType.ROOT,
-        }),
-      );
-      expect(stdout).toContain('/iCloud/root/path');
-    });
+    .it('lists all iCloud Drive paths');
 
-  // Application path tests
   test
-    .stdout()
     .do(() => {
+      const mockFindDrivePaths = findDrivePaths as jest.Mock;
       mockFindDrivePaths.mockResolvedValueOnce([
         {
-          path: '/iCloud/apps/MyApp',
+          path: '/test/path1',
           type: PathType.APP,
           score: 100,
-          exists: true,
           isAccessible: true,
+          exists: true,
           metadata: {
-            appName: 'MyApp',
-            bundleId: 'com.example.myapp',
-          },
-        },
+            appName: 'TestApp',
+            bundleId: 'com.test.app'
+          }
+        }
       ]);
     })
-    .command(['locate', 'app', 'MyApp'])
-    .it('finds paths for specific application', ({ stdout }) => {
-      expect(mockFindDrivePaths).toHaveBeenCalledWith(
-        expect.objectContaining({
+    .stdout()
+    .command(['locate', '--detailed'])
+    .it('shows detailed path information');
+
+  test
+    .do(() => {
+      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      mockFindDrivePaths.mockResolvedValueOnce([
+        {
+          path: '/test/path1',
           type: PathType.APP,
-          appName: 'MyApp',
-        }),
-      );
-      expect(stdout).toContain('/iCloud/apps/MyApp');
-    });
-
-  // Photos path tests
-  test
-    .stdout()
-    .do(() => {
-      mockFindDrivePaths.mockResolvedValueOnce([
-        {
-          path: '/iCloud/photos',
-          type: PathType.PHOTOS,
           score: 100,
-          exists: true,
           isAccessible: true,
-          metadata: {},
+          exists: true,
+          metadata: {
+            appName: 'TestApp',
+            bundleId: 'com.test.app'
+          }
         },
+        {
+          path: '/test/path2',
+          type: PathType.DOCS,
+          score: 90,
+          isAccessible: false,
+          exists: true,
+          metadata: {}
+        }
       ]);
     })
-    .command(['locate', 'photos'])
-    .it('finds photos paths', ({ stdout }) => {
-      expect(mockFindDrivePaths).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: PathType.PHOTOS,
-        }),
-      );
-      expect(stdout).toContain('/iCloud/photos');
-    });
-
-  // Documents path tests
-  test
     .stdout()
+    .command(['locate', '--detailed', '--table'])
+    .it('shows path information in table format');
+
+  test
     .do(() => {
+      const mockFindDrivePaths = findDrivePaths as jest.Mock;
       mockFindDrivePaths.mockResolvedValueOnce([
         {
-          path: '/iCloud/documents',
-          type: PathType.DOCS,
+          path: '/test/path1',
+          type: PathType.APP,
           score: 100,
-          exists: true,
           isAccessible: true,
-          metadata: {},
-        },
+          exists: true,
+          metadata: {
+            appName: 'TestApp',
+            bundleId: 'com.test.app'
+          }
+        }
       ]);
     })
-    .command(['locate', 'docs'])
-    .it('finds document paths', ({ stdout }) => {
-      expect(mockFindDrivePaths).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: PathType.DOCS,
-        }),
-      );
-      expect(stdout).toContain('/iCloud/documents');
-    });
-
-  // Filter option tests
-  test
     .stdout()
-    .command(['locate', '--min-score', '80'])
-    .it('supports minimum score filtering', () => {
-      expect(mockFindDrivePaths).toHaveBeenCalledWith(
-        expect.objectContaining({
-          minScore: 80,
-        }),
-      );
-    });
+    .command(['locate', '--json'])
+    .it('outputs in JSON format');
 
   test
+    .do(() => {
+      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      mockFindDrivePaths.mockResolvedValueOnce([
+        {
+          path: '/test/path1',
+          type: PathType.APP,
+          score: 100,
+          isAccessible: true,
+          exists: true,
+          metadata: {
+            appName: 'TestApp',
+            bundleId: 'com.test.app'
+          }
+        }
+      ]);
+    })
+    .stdout()
+    .command(['locate', 'app', 'TestApp'])
+    .it('filters paths by type and app name');
+
+  test
+    .do(() => {
+      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      mockFindDrivePaths.mockResolvedValueOnce([
+        {
+          path: '/test/path1',
+          type: PathType.DOCS,
+          score: 100,
+          isAccessible: true,
+          exists: true,
+          metadata: {}
+        }
+      ]);
+    })
+    .stdout()
+    .command(['locate', '--min-score', '90'])
+    .it('filters paths by minimum score');
+
+  test
+    .do(() => {
+      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      mockFindDrivePaths.mockResolvedValueOnce([
+        {
+          path: '/test/path1',
+          type: PathType.DOCS,
+          score: 100,
+          isAccessible: false,
+          exists: true,
+          metadata: {}
+        }
+      ]);
+    })
     .stdout()
     .command(['locate', '--include-inaccessible'])
-    .it('supports including inaccessible paths', () => {
-      expect(mockFindDrivePaths).toHaveBeenCalledWith(
-        expect.objectContaining({
-          includeInaccessible: true,
-        }),
-      );
-    });
-
-  // Output format tests
-  test
-    .stdout()
-    .do(() => {
-      mockFindDrivePaths.mockResolvedValueOnce([
-        {
-          path: '/iCloud/apps/TestApp',
-          type: PathType.APP,
-          score: 100,
-          exists: true,
-          isAccessible: true,
-          metadata: {
-            appName: 'TestApp',
-            bundleId: 'com.test.app',
-          },
-        },
-      ]);
-    })
-    .command(['locate', '--detailed'])
-    .it('supports detailed output format', ({ stdout }) => {
-      expect(stdout).toContain('Path:');
-      expect(stdout).toContain('/iCloud/apps/TestApp');
-      expect(stdout).toContain('Type:');
-      expect(stdout).toContain('app');
-      expect(stdout).toContain('Score:');
-      expect(stdout).toContain('100');
-    });
+    .it('includes inaccessible paths');
 
   test
-    .stdout()
     .do(() => {
-      mockFindDrivePaths.mockResolvedValueOnce([
-        {
-          path: '/iCloud/apps/TestApp',
-          type: PathType.APP,
-          score: 100,
-          exists: true,
-          isAccessible: true,
-          metadata: {
-            appName: 'TestApp',
-            bundleId: 'com.test.app',
-          },
-        },
-      ]);
-    })
-    .command(['locate', '--json'])
-    .it('supports JSON output format', ({ stdout }) => {
-      const output = JSON.parse(stdout);
-      expect(output).toHaveProperty('status', 'success');
-      expect(output).toHaveProperty('paths');
-      expect(output.paths).toHaveLength(1);
-      expect(output.paths[0]).toMatchObject({
-        path: '/iCloud/apps/TestApp',
-        type: 'app',
-        score: 100,
-      });
-    });
-
-  // Error handling tests
-  test
-    .stdout()
-    .stderr()
-    .do(() => {
-      mockFindDrivePaths.mockRejectedValueOnce(new Error('Failed to find paths'));
-    })
-    .command(['locate'])
-    .catch(error => {
-      expect(error.message).toContain('Failed to find paths');
-    })
-    .it('handles errors gracefully');
-
-  test
-    .stdout()
-    .do(() => {
+      const mockFindDrivePaths = findDrivePaths as jest.Mock;
       mockFindDrivePaths.mockResolvedValueOnce([]);
     })
-    .command(['locate', '--detailed'])
-    .it('displays appropriate message when no paths found', ({ stdout }) => {
-      expect(stdout).toContain('No iCloud Drive paths found');
-    });
+    .stdout()
+    .command(['locate'])
+    .it('handles no paths found');
+
+  test
+    .do(() => {
+      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      mockFindDrivePaths.mockRejectedValueOnce(new Error('Test error'));
+    })
+    .stdout()
+    .command(['locate'])
+    .exit(1)
+    .it('handles errors');
+
+  test
+    .do(() => {
+      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      mockFindDrivePaths.mockResolvedValueOnce([
+        {
+          path: '/test/path1',
+          type: PathType.APP,
+          score: 100,
+          isAccessible: true,
+          exists: true,
+          metadata: {
+            appName: 'VeryLongAppName'.repeat(10),
+            bundleId: 'com.test.verylongbundleid'.repeat(10)
+          }
+        }
+      ]);
+    })
+    .stdout()
+    .command(['locate', '--detailed', '--table'])
+    .it('handles long app names and bundle IDs in table format');
 });

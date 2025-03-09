@@ -37,11 +37,16 @@ export abstract class BaseCommand extends Command {
     };
   }
 
-  protected handleError(error: unknown, silent = false): never {
+  protected handleError(error: unknown, silent = false, exitCode = 2): never {
     if (!silent) {
-      this.error(error instanceof Error ? error.message : String(error));
+      if (exitCode === 2) {
+        this.error(error instanceof Error ? error.message : String(error));
+      } else {
+        console.error(error instanceof Error ? error.message : String(error));
+        this.exit(exitCode);
+      }
     }
-    this.exit(1);
+    this.exit(exitCode);
   }
 
   protected async prompt<T extends { confirmed: boolean }>(options: string | PromptOptions): Promise<T> {
