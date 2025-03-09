@@ -1,170 +1,276 @@
-# iCloudy
+# iCloudy 🌥️
 
-A modern CLI tool for managing your iCloud Drive files and directories. Currently supports locating iCloud paths on
-macOS and Windows.
+[![npm version](https://badge.fury.io/js/icloudy.svg)](https://badge.fury.io/js/icloudy)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-## Features
-
-- **Cross-Platform Support**: Automatically detects whether the operating system is macOS, Windows, or Linux and uses
-  the corresponding path finder.
-- **Path Information**: Provides detailed information about the local iCloud paths, including accessibility, metadata,
-  and existence.
-- **Easy to Use**: Simple API to locate iCloud Drive paths.
+A Node.js library and CLI tool for managing iCloud Drive files and directories, with support for macOS and Windows.
 
 ## Installation
 
+Using npm:
 ```bash
+# Install globally
 npm install -g icloudy
+
+# Install as a dependency
+npm install icloudy
 ```
 
-## Usage
+Using yarn:
+```bash
+# Install globally
+yarn global add icloudy
+
+# Install as a dependency
+yarn add icloudy
+```
+
+Using pnpm:
+```bash
+# Install globally
+pnpm add -g icloudy
+
+# Install as a dependency
+pnpm add icloudy
+```
+
+## Library Usage
+
+### Finding iCloud Paths
+
+```typescript
+import { findICloudPaths } from 'icloudy';
+
+// Find all iCloud paths
+const paths = await findICloudPaths();
+
+// Find specific app paths
+const notesPaths = await findICloudPaths({
+  type: 'app',
+  app: 'Notes'
+});
+
+// Find with detailed information
+const detailedPaths = await findICloudPaths({
+  verbose: true
+});
+```
+
+### Path Information Structure
+
+```typescript
+interface PathInfo {
+  path: string;          // Absolute path
+  type: PathType;        // 'root' | 'app' | 'photos' | 'docs' | 'other'
+  exists: boolean;       // Whether path exists
+  isAccessible: boolean; // Whether path is accessible
+  score: number;         // Confidence score (0-100)
+  metadata: {
+    appId?: string;      // App identifier (e.g., 'com.apple.notes')
+    appName?: string;    // Human-readable app name (e.g., 'Notes')
+    bundleId?: string;   // App bundle ID
+    contents?: string[]; // Directory contents
+    stats?: Stats;      // File system stats
+    hasICloudMarkers?: boolean; // Whether directory contains iCloud markers
+    source?: {          // Information about how the path was found
+      source: string;   // 'common' | 'registry' | 'user_home' | 'system'
+      [key: string]: any;
+    }
+  }
+}
+```
+
+### Platform-Specific Examples
+
+#### macOS
+```typescript
+// Common iCloud paths on macOS
+const paths = await findICloudPaths();
+// Results:
+// - ~/Library/Mobile Documents/com~apple~CloudDocs (type: 'root')
+// - ~/Library/Mobile Documents/com~apple~Notes (type: 'app')
+// - ~/Library/Mobile Documents/com~apple~Pages (type: 'app')
+// - ~/Library/Mobile Documents/com~apple~CloudDocs/Documents (type: 'docs')
+// - ~/Library/Mobile Documents/com~apple~CloudDocs/Photos (type: 'photos')
+
+// Find app-specific paths
+const appPaths = await findICloudPaths({ type: 'app' });
+// Results:
+// - ~/Library/Mobile Documents/com~apple~Notes
+// - ~/Library/Mobile Documents/com~apple~Pages
+// etc.
+```
+
+#### Windows
+```typescript
+// Common iCloud paths on Windows
+const paths = await findICloudPaths();
+// Results:
+// - C:\\Users\\{username}\\iCloudDrive (type: 'root')
+// - C:\\Users\\{username}\\iCloudDrive\\Documents (type: 'docs')
+// - C:\\Users\\{username}\\iCloudDrive\\Photos (type: 'photos')
+
+// Find app-specific paths
+const appPaths = await findICloudPaths({ type: 'app' });
+// Results:
+// - C:\\Users\\{username}\\iCloudDrive\\iCloud~com~apple~Notes
+// - C:\\Users\\{username}\\iCloudDrive\\iCloud~com~apple~Pages
+// etc.
+```
+
+## CLI Commands
+
+### Global Options
 
 ```bash
-# Show all local iCloud paths
-icloudy path
-
-# Show specific app storage location
-icloudy path -a "notes"
-
-# Show only root paths
-icloudy path -t root
-
-# Output in JSON format
-icloudy path --json
+Options:
+  -h, --help        Show help information
+  -j, --json        Output in JSON format
+  -n, --no-color    Disable colored output
+  -s, --silent      Suppress all output except errors
 ```
 
-Here is a simple example of how to use iCloudy in your code:
+### locate - Find iCloud Paths
 
-```javascript
-import {findICloudPaths} from 'icloudy';
+Find and display iCloud Drive paths on your system.
 
-async function main() {
-  try {
-    const paths = await findICloudPaths();
-    console.log('Local iCloud Drive paths:', paths);
-  } catch (error) {
-    console.error('Error locating iCloud paths:', error);
-  }
-}
+```bash
+Usage: icloudy locate [type] [appName] [options]
 
-main();
+Arguments:
+  type     Path type to locate: 'root' | 'app' | 'photos' | 'docs' | 'all' (default: "root")
+  appName  App name (required when type is 'app')
+
+Options:
+  -d, --detailed            Show detailed information for each path
+  -t, --table              Show results in table format (requires -d)
+  -i, --include-inaccessible  Include inaccessible paths
+  -m, --min-score <n>      Minimum score threshold for paths (default: 0)
+  -j, --json               Output in JSON format
+  --no-color               Disable colored output
+  -s, --silent             Show errors only
+
+Examples:
+  # Find all iCloud paths
+  icloudy locate all
+
+  # Find app-specific paths
+  icloudy locate app Notes
+  icloudy locate app "Apple Pages"
+
+  # Find specific path types
+  icloudy locate root     # Find root iCloud Drive directory
+  icloudy locate docs     # Find documents directory
+  icloudy locate photos   # Find photos directory
+
+  # Show detailed information
+  icloudy locate -d
+  icloudy locate -d -t    # Show in table format
 ```
 
-### Example for Different Platforms
+### copy - Copy Files to iCloud
 
-You can also handle different platforms by checking the operating system:
+Copy files and directories to iCloud Drive locations.
 
-```javascript
-import {findICloudPaths} from 'icloudy';
-import os from 'os';
+```bash
+Usage: icloudy copy <source> <type> [appName] [options]
 
-async function main() {
-  try {
-    const paths = await findICloudPaths();
-    console.log('Found iCloud Drive paths:', paths);
+Arguments:
+  source   Source path to copy from
+  type     Target path type: 'root' | 'app' | 'photos' | 'docs'
+  appName  App name (required when type is 'app')
 
-    if (os.platform() === 'win32') {
-      console.log('This is a Windows system.');
-    } else if (os.platform() === 'darwin') {
-      console.log('This is a macOS system.');
-    } else {
-      console.log('This is a Linux system.');
-    }
-  } catch (error) {
-    console.error('Error finding iCloud paths:', error);
-  }
-}
+Options:
+  -p, --pattern <pattern>   File pattern to match (default: *)
+  -r, --recursive          Copy directories recursively
+  -f, --force             Overwrite existing files
+  -d, --dry-run           Show what would be copied without actually copying
+  -i, --interactive       Enable interactive confirmation
+  -y, --yes              Skip all confirmations
+  -D, --detailed         Show detailed copy information
+  -t, --table           Show results in table format (requires -D)
+  -j, --json            Output results in JSON format
+  --no-color           Disable colored output
+  -s, --silent         Suppress all output except errors
 
-main();
+Examples:
+  # Basic copying
+  icloudy copy ./localfile root              # Copy to iCloud Drive root
+  icloudy copy ./notes app Notes             # Copy to Notes app storage
+  icloudy copy ./documents docs              # Copy to Documents folder
+  icloudy copy ./images photos               # Copy to Photos folder
+
+  # Advanced usage
+  icloudy copy ./folder root -r              # Recursive copy
+  icloudy copy ./docs docs -p "*.md"         # Copy only markdown files
+  icloudy copy ./data app Pages -i           # Interactive mode
+  icloudy copy ./backup docs -f              # Force overwrite
+  icloudy copy ./project root -d             # Dry run
+  icloudy copy ./files docs -D -t            # Show detailed table output
 ```
 
-## API
+### Example Output Formats
 
-### `findICloudPaths()`
+#### Default Output
+```
+/Users/username/Library/Mobile Documents/com~apple~CloudDocs
+/Users/username/Library/Mobile Documents/com~apple~Notes
+```
 
-- **Returns**: `Promise<PathInfo[]>` - A promise that resolves to an array of `PathInfo` objects, each containing
-  details about the found paths.
+#### Detailed Output (-d)
+```
+iCloud Drive Paths:
+- Root Directory:
+  Path: /Users/username/Library/Mobile Documents/com~apple~CloudDocs
+  Accessible: Yes
+  Score: 95
+  Contains: Documents, Photos, ...
 
-### `PathInfo`
+- App Storage (Notes):
+  Path: /Users/username/Library/Mobile Documents/com~apple~Notes
+  Accessible: Yes
+  Score: 85
+  App Name: Notes
+  Bundle ID: com.apple.notes
+```
 
-The `PathInfo` interface contains the following properties:
-
-- `path`: The path of the found item.
-- `score`: A score indicating the relevance of the path.
-- `exists`: A boolean indicating whether the path exists.
-- `isAccessible`: A boolean indicating whether the path is accessible.
-- `type`: The type of the path (e.g., root, app storage).
-- `metadata`: Additional metadata about the path, including permissions and standard directory markers.
-
-#### `metadata` properties
-
-The `metadata` property is defined by the `PathMetadata` interface, which includes the following fields:
-
-- `stats`: An object containing statistics about the path.
-- `contents`: An array of strings representing the contents of the directory.
-- `hasICloudMarkers`: A boolean indicating if the path has iCloud markers.
-- `source`: An object representing the source of the path.
-- `appId`: A string representing the application ID.
-- `appName`: A string representing the application name.
-- `bundleId`: A string representing the bundle ID.
-- `vendor`: A string representing the vendor.
-- `[key: string]: any`: Additional properties.
-
-#### `metadata` example
-
+#### JSON Output (-j)
 ```json
 {
-  "path": "C:\\Users\\User\\iCloudDrive\\ExamplePath",
-  "score": 28,
-  "exists": true,
-  "isAccessible": true,
-  "metadata": {
-    "stats": {
-      "dev": 1234567890,
-      "mode": 16676,
-      "nlink": 1,
-      "uid": 0,
-      "gid": 0,
-      "rdev": 0,
-      "blksize": 4096,
-      "ino": 123456789012345,
-      "size": 0,
-      "blocks": 0,
-      "atimeMs": 1732551810060.3833,
-      "mtimeMs": 1730961453144.7986,
-      "ctimeMs": 1730961453144.7986,
-      "birthtimeMs": 1730961449000
-    },
-    "contents": ["file1.txt", "file2.txt"],
-    "hasICloudMarkers": true,
-    "source": {
-      "source": "appStorage",
-      "rootPath": "C:\\Users\\User\\iCloudDrive"
-    },
-    "appId": "ExampleAppID",
-    "appName": "ExampleApp",
-    "bundleId": "com.example.ExampleApp",
-    "vendor": "com.example"
-  },
-  "type": "app_storage"
+  "status": "success",
+  "timestamp": "2024-01-20T12:00:00Z",
+  "paths": [
+    {
+      "path": "/Users/username/Library/Mobile Documents/com~apple~CloudDocs",
+      "type": "root",
+      "exists": true,
+      "isAccessible": true,
+      "score": 95,
+      "metadata": {
+        "hasICloudMarkers": true,
+        "contents": ["Documents", "Photos"]
+      }
+    }
+  ]
 }
 ```
 
-## Frequently Asked Questions (FAQ)
+## API Reference
 
-### 1. What should I do if the paths are not found?
+### findICloudPaths(options?)
 
-If the paths are not found, ensure that iCloud Drive is installed and properly configured on your system. You may also
-want to check your permissions.
+```typescript
+interface FindOptions {
+  type?: 'root' | 'app' | 'photos' | 'docs' | 'other';  // Filter by path type
+  app?: string;    // Filter by app name (only valid with type: 'app')
+  verbose?: boolean;  // Include detailed metadata
+  includeInaccessible?: boolean;  // Include inaccessible paths
+  minScore?: number;  // Minimum confidence score (0-100)
+}
 
-### 2. Is this library compatible with all versions of Node.js?
-
-This library is compatible with Node.js version 12 and above. Please ensure you are using a supported version.
-
-### 3. How can I contribute to this project?
-
-Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
+// Returns Promise<PathInfo[]>
+```
 
 ## License
 
-This project is licensed under the Apache-2.0 License. See the LICENSE file for more details.
+Apache-2.0
