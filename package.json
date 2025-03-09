@@ -17,9 +17,9 @@
   "bin": {
     "icloudy": "./bin/run"
   },
-  "types": "./dist/types/index.d.ts",
-  "main": "./dist/cjs/index.js",
-  "module": "./dist/esm/index.js",
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
   "engines": {
     "node": ">=16"
   },
@@ -57,7 +57,6 @@
   },
   "dependencies": {
     "@inquirer/prompts": "^7.3.3",
-    "chalk": "^4.1.2",
     "minimatch": "^10.0.1"
   },
   "devDependencies": {
@@ -111,13 +110,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "require": "./dist/index.cjs",
+      "require": "./dist/index.js",
       "import": "./dist/index.mjs"
-    },
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "require": "./dist/*.cjs",
-      "import": "./dist/*.mjs"
     }
   },
   "files": [

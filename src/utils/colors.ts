@@ -1,5 +1,3 @@
-import chalk from 'chalk';
-
 import { PathInfo, PathType } from '../types';
 
 // Global color control
@@ -67,7 +65,6 @@ const colorTheme = {
 
 export const setColorEnabled = (enabled: boolean) => {
   colorEnabled = enabled;
-  chalk.level = enabled ? 3 : 0;
 };
 
 // Color wrapper function
