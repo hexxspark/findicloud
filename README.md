@@ -5,6 +5,23 @@
 
 A Node.js library and CLI tool for managing iCloud Drive files and directories, with support for macOS and Windows.
 
+## Prerequisites
+
+- Node.js 16 or later
+- Operating System:
+  - macOS: Any version with iCloud Drive enabled
+  - Windows: Windows 10 or later with iCloud for Windows installed
+  - Linux: Not supported
+- iCloud Drive enabled and configured
+- Sufficient permissions to access iCloud directories
+
+## Dependencies
+
+This tool relies on the following key dependencies:
+- [@oclif/core](https://www.npmjs.com/package/@oclif/core): Command line interface framework
+- [@inquirer/prompts](https://www.npmjs.com/package/@inquirer/prompts): Interactive command line user interface
+- [minimatch](https://www.npmjs.com/package/minimatch): File pattern matching
+
 ## Installation
 
 Using npm:
@@ -46,7 +63,7 @@ const paths = await findICloudPaths();
 
 // Find specific app paths
 const notesPaths = await findICloudPaths({
-  type: 'app',
+  type: 'app',  // NOT 'app_storage'
   app: 'Notes'
 });
 
@@ -54,6 +71,12 @@ const notesPaths = await findICloudPaths({
 const detailedPaths = await findICloudPaths({
   verbose: true
 });
+
+// Find specific path types
+const rootPaths = await findICloudPaths({ type: 'root' });
+const docPaths = await findICloudPaths({ type: 'docs' });
+const photoPaths = await findICloudPaths({ type: 'photos' });
+const otherPaths = await findICloudPaths({ type: 'other' });
 ```
 
 ### Path Information Structure
@@ -78,6 +101,15 @@ interface PathInfo {
     }
   }
 }
+
+// All possible path types
+enum PathType {
+  ROOT = 'root',       // Main iCloud Drive directory
+  APP = 'app',         // App-specific storage
+  PHOTOS = 'photos',   // Photos library location
+  DOCS = 'docs',       // Documents library location
+  OTHER = 'other'      // Other iCloud paths
+}
 ```
 
 ### Platform-Specific Examples
@@ -92,6 +124,7 @@ const paths = await findICloudPaths();
 // - ~/Library/Mobile Documents/com~apple~Pages (type: 'app')
 // - ~/Library/Mobile Documents/com~apple~CloudDocs/Documents (type: 'docs')
 // - ~/Library/Mobile Documents/com~apple~CloudDocs/Photos (type: 'photos')
+// - ~/Library/Mobile Documents/com~apple~CloudDocs/Other (type: 'other')
 
 // Find app-specific paths
 const appPaths = await findICloudPaths({ type: 'app' });
@@ -109,6 +142,7 @@ const paths = await findICloudPaths();
 // - C:\\Users\\{username}\\iCloudDrive (type: 'root')
 // - C:\\Users\\{username}\\iCloudDrive\\Documents (type: 'docs')
 // - C:\\Users\\{username}\\iCloudDrive\\Photos (type: 'photos')
+// - C:\\Users\\{username}\\iCloudDrive\\Other (type: 'other')
 
 // Find app-specific paths
 const appPaths = await findICloudPaths({ type: 'app' });
@@ -128,6 +162,7 @@ Options:
   -j, --json        Output in JSON format
   -n, --no-color    Disable colored output
   -s, --silent      Suppress all output except errors
+  -v, --version     Show version information
 ```
 
 ### locate - Find iCloud Paths
@@ -138,7 +173,7 @@ Find and display iCloud Drive paths on your system.
 Usage: icloudy locate [type] [appName] [options]
 
 Arguments:
-  type     Path type to locate: 'root' | 'app' | 'photos' | 'docs' | 'all' (default: "root")
+  type     Path type to locate: 'root' | 'app' | 'photos' | 'docs' | 'other' | 'all' (default: "root")
   appName  App name (required when type is 'app')
 
 Options:
@@ -162,10 +197,12 @@ Examples:
   icloudy locate root     # Find root iCloud Drive directory
   icloudy locate docs     # Find documents directory
   icloudy locate photos   # Find photos directory
+  icloudy locate other    # Find other iCloud paths
 
   # Show detailed information
   icloudy locate -d
   icloudy locate -d -t    # Show in table format
+  icloudy locate all -j   # Show all paths in JSON format
 ```
 
 ### copy - Copy Files to iCloud
@@ -177,7 +214,7 @@ Usage: icloudy copy <source> <type> [appName] [options]
 
 Arguments:
   source   Source path to copy from
-  type     Target path type: 'root' | 'app' | 'photos' | 'docs'
+  type     Target path type: 'root' | 'app' | 'photos' | 'docs' | 'other'
   appName  App name (required when type is 'app')
 
 Options:
@@ -199,6 +236,7 @@ Examples:
   icloudy copy ./notes app Notes             # Copy to Notes app storage
   icloudy copy ./documents docs              # Copy to Documents folder
   icloudy copy ./images photos               # Copy to Photos folder
+  icloudy copy ./misc other                  # Copy to other iCloud location
 
   # Advanced usage
   icloudy copy ./folder root -r              # Recursive copy
@@ -222,12 +260,14 @@ Examples:
 iCloud Drive Paths:
 - Root Directory:
   Path: /Users/username/Library/Mobile Documents/com~apple~CloudDocs
+  Type: root
   Accessible: Yes
   Score: 95
   Contains: Documents, Photos, ...
 
 - App Storage (Notes):
   Path: /Users/username/Library/Mobile Documents/com~apple~Notes
+  Type: app
   Accessible: Yes
   Score: 85
   App Name: Notes
@@ -248,7 +288,10 @@ iCloud Drive Paths:
       "score": 95,
       "metadata": {
         "hasICloudMarkers": true,
-        "contents": ["Documents", "Photos"]
+        "contents": ["Documents", "Photos"],
+        "source": {
+          "source": "common"
+        }
       }
     }
   ]
@@ -269,6 +312,24 @@ interface FindOptions {
 }
 
 // Returns Promise<PathInfo[]>
+```
+
+## Error Handling
+
+The library uses error codes and detailed error messages to help diagnose issues:
+
+```typescript
+try {
+  const paths = await findICloudPaths();
+} catch (error) {
+  if (error.code === 'EACCES') {
+    console.error('Permission denied accessing iCloud paths');
+  } else if (error.code === 'ENOENT') {
+    console.error('iCloud Drive not found or not configured');
+  } else {
+    console.error('Error:', error.message);
+  }
+}
 ```
 
 ## License

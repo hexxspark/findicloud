@@ -45,8 +45,9 @@ export default class LocateCommand extends BaseCommand {
 
   static args = {
     type: Args.string({
-      description: 'Path type to locate (root|app|photos|docs|all)',
+      description: 'Path type to locate (root|app|photos|docs|other|all)',
       default: 'root',
+      options: ['root', 'app', 'photos', 'docs', 'other', 'all']
     }),
     appName: Args.string({
       description: 'App name (required for app type)',
@@ -62,9 +63,15 @@ export default class LocateCommand extends BaseCommand {
       // Convert type argument to PathType
       if (args.type && args.type.toLowerCase() !== 'all') {
         const type = args.type.toUpperCase();
-        if (type in PathType) {
-          options.type = PathType[type as keyof typeof PathType];
+        if (!(type in PathType)) {
+          throw new Error(`Invalid path type: ${args.type}. Valid types are: root, app, photos, docs, other, all`);
         }
+        options.type = PathType[type as keyof typeof PathType];
+      }
+
+      // Validate app name is provided when type is 'app'
+      if (options.type === PathType.APP && !args.appName) {
+        throw new Error('App name is required when type is "app"');
       }
 
       // Set app name if provided
