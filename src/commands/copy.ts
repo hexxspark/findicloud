@@ -150,18 +150,30 @@ export default class CopyCommand extends BaseCommand {
     if (options.dryRun || options.detailed) {
       if (options.table) {
         this.log(colors.dim('\nFiles to copy (table format):'));
-        this.log('Path                          Size       Last Modified');
-        this.log('------------------------------------------------------------');
+
+        // 定义列宽
+        const pathWidth = 30;
+        const sizeWidth = 10;
+        const dateWidth = 10;
+
+        // 计算表头和分隔线
+        const header = `Path${' '.repeat(pathWidth - 4)} Size${' '.repeat(sizeWidth - 4)} Last Modified`;
+        const separatorWidth = pathWidth + sizeWidth + dateWidth + 2; // +2 for spaces between columns
+        const separator = '─'.repeat(separatorWidth);
+
+        this.log(header);
+        this.log(colors.dim(separator));
+
         analysis.filesToCopy.forEach((file: string) => {
           try {
             const stats = fs.statSync(file);
             const size = this.formatSize(stats.size);
             const lastModified = stats.mtime.toISOString().split('T')[0];
             const relativePath = path.relative(analysis.source, file);
-            this.log(`${relativePath.padEnd(30)} ${size.padEnd(10)} ${lastModified}`);
+            this.log(`${relativePath.padEnd(pathWidth)} ${size.padEnd(sizeWidth)} ${lastModified}`);
           } catch {
             const relativePath = path.relative(analysis.source, file);
-            this.log(`${relativePath.padEnd(30)} Unknown    Unknown`);
+            this.log(`${relativePath.padEnd(pathWidth)} Unknown${' '.repeat(sizeWidth - 7)} Unknown`);
           }
         });
       } else {

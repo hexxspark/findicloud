@@ -26,8 +26,7 @@ export default class FindCommand extends BaseCommand {
     }),
     table: Flags.boolean({
       char: 't',
-      description: 'Show results in table format',
-      dependsOn: ['detailed'],
+      description: 'Show results in table format (will automatically enable detailed view)',
     }),
     'include-inaccessible': Flags.boolean({
       char: 'i',
@@ -58,7 +57,7 @@ export default class FindCommand extends BaseCommand {
       }
 
       // Set additional options
-      options.detailed = flags.detailed || false;
+      options.detailed = flags.detailed || flags.table || false;
       options.tableFormat = flags.table || false;
       options.includeInaccessible = flags['include-inaccessible'] || false;
       options.minScore = flags['min-score'];
@@ -144,10 +143,13 @@ export default class FindCommand extends BaseCommand {
 
     // Define column widths - adjust based on content
     const colWidths = [4, 15, 45, 30];
-    const totalWidth = colWidths.reduce((sum, width) => sum + width, 0) + colWidths.length + 1;
 
-    // Create separator line
-    const separator = colors.dim('─'.repeat(totalWidth));
+    // 创建一个示例行来确定实际宽度
+    const sampleRow = this.formatTableRow(['1', 'Status', 'Path', 'Details'], colWidths);
+    const actualWidth = this.stripAnsi(sampleRow).length;
+
+    // 使用实际宽度创建分隔线
+    const separator = colors.dim('─'.repeat(actualWidth));
 
     // Create header row with consistent separators
     const headerCells = [colors.bold('#'), colors.bold('Status'), colors.bold('Path'), colors.bold('Details')];

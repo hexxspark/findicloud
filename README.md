@@ -423,7 +423,7 @@ Arguments:
 
 Options:
   -d, --detailed           Show detailed information for each path
-  -t, --table              Show results in table format (requires -d)
+  -t, --table              Show results in table format (will automatically enable detailed view)
   -i, --include-inaccessible  Include inaccessible paths
   -m, --min-score <n>      Minimum score threshold for paths (default: 0)
   -j, --json               Output in JSON format
@@ -440,7 +440,7 @@ Examples:
 
   # Show detailed information
   icloudy find -d
-  icloudy find -d -t    # Show in table format
+  icloudy find -t    # Show in table format (automatically enables detailed view)
   icloudy find -j       # Show all paths in JSON format
 
   # Advanced filtering
