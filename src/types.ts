@@ -56,34 +56,3 @@ export interface SearchResult {
   paths: PathInfo[];
   error?: string;
 }
-
-export interface CommandOptions extends SearchOptions {
-  showHelp: boolean;
-  jsonOutput: boolean;
-  noColor: boolean;
-  silent: boolean;
-  source?: string;
-  target?: string;
-  recursive?: boolean;
-  force?: boolean;
-  dryRun?: boolean;
-  app?: string;
-  pattern?: string;
-  overwrite?: boolean;
-  detailed?: boolean;
-  tableFormat?: boolean;
-  interactive?: boolean;
-}
-
-export interface CopyOptions {
-  source: string;
-  app?: string;
-  pattern?: string;
-  recursive?: boolean;
-  overwrite?: boolean;
-  dryRun?: boolean;
-  detailed?: boolean;
-  table?: boolean;
-  force?: boolean;
-  interactive?: boolean;
-}

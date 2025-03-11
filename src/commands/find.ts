@@ -1,15 +1,13 @@
 import {Args, Flags} from '@oclif/core';
 
+import {BaseCommand, CommandOptions} from '../command';
 import {findiCloudPaths} from '../find';
-import {CommandOptions, PathInfo} from '../types';
+import {PathInfo} from '../types';
 import {colors} from '../utils/colors';
-import {BaseCommand} from './base';
 
 export default class FindCommand extends BaseCommand {
   static id = 'find';
   static description = 'Find iCloud Drive paths and files';
-
-  static aliases = ['f'];
 
   static examples = [
     '$ icloudy find                    # Find all iCloud Drive paths',
@@ -28,13 +26,13 @@ export default class FindCommand extends BaseCommand {
       char: 't',
       description: 'Show results in table format (will automatically enable detailed view)',
     }),
-    'include-inaccessible': Flags.boolean({
-      char: 'i',
-      description: 'Include inaccessible paths in results',
+    all: Flags.boolean({
+      char: 'a',
+      description: 'Include all paths (including inaccessible ones)',
     }),
-    'min-score': Flags.integer({
-      char: 'm',
-      description: 'Minimum score threshold for paths',
+    score: Flags.integer({
+      char: 'c',
+      description: 'Minimum score threshold for filtering results',
       default: 0,
     }),
   };
@@ -59,8 +57,8 @@ export default class FindCommand extends BaseCommand {
       // Set additional options
       options.detailed = flags.detailed || flags.table || false;
       options.tableFormat = flags.table || false;
-      options.includeInaccessible = flags['include-inaccessible'] || false;
-      options.minScore = flags['min-score'];
+      options.includeInaccessible = flags.all || false;
+      options.minScore = flags.score;
 
       if (!options.silent && options.detailed) {
         this.log(colors.info('Finding iCloud Drive paths...'));

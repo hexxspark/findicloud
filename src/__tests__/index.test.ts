@@ -1,4 +1,4 @@
-import {findiCloudPaths} from '../index';
+import {findiCloudPaths} from '..';
 
 describe('Index Exports', () => {
   it('should export findICloudDrivePaths function', () => {

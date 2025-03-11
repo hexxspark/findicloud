@@ -423,8 +423,8 @@ Arguments:
 Options:
   -d, --detailed           Show detailed information for each path
   -t, --table              Show results in table format (will automatically enable detailed view)
-  -i, --include-inaccessible  Include inaccessible paths
-  -m, --min-score <n>      Minimum score threshold for paths (default: 0)
+  -a, --all                Include all paths (including inaccessible ones)
+  -c, --score <n>          Minimum score threshold for filtering results (default: 0)
   -j, --json               Output in JSON format
   --no-color               Disable colored output
   -s, --silent             Show errors only

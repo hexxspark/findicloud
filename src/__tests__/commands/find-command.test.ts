@@ -107,10 +107,43 @@ describe('find command', () => {
   test
     .do(() => {
       const mockFindDrivePaths = findiCloudPaths as jest.Mock;
-      mockFindDrivePaths.mockResolvedValueOnce([]);
+      mockFindDrivePaths.mockResolvedValueOnce([
+        {
+          path: '/test/path1',
+          score: 100,
+          isAccessible: true,
+          exists: true,
+          metadata: {
+            appName: 'Test App',
+            bundleId: 'com.test.app',
+            contents: ['file1', 'file2'],
+          },
+        },
+      ]);
     })
     .stdout()
-    .command(['find', '--min-score', '90'])
+    .command(['find', '--detailed', '--table'])
+    .it('formats table output correctly');
+
+  test
+    .do(() => {
+      const mockFindDrivePaths = findiCloudPaths as jest.Mock;
+      mockFindDrivePaths.mockResolvedValueOnce([
+        {
+          path: '/test/path1',
+          score: 100,
+          isAccessible: true,
+          exists: true,
+          metadata: {
+            appName: 'Test App',
+            bundleId: 'com.test.app',
+            contents: ['file1', 'file2'],
+          },
+        },
+      ]);
+    })
+    .stdout()
+    .command(['find', '--score', '90'])
     .it('filters by min score');
 
   test
@@ -119,7 +152,7 @@ describe('find command', () => {
       mockFindDrivePaths.mockResolvedValueOnce([]);
     })
     .stdout()
-    .command(['find', '--include-inaccessible'])
+    .command(['find', '--all'])
     .it('includes inaccessible paths');
 
   test
@@ -141,25 +174,4 @@ describe('find command', () => {
     .command(['find'])
     .exit(1)
     .it('handles errors');
-
-  test
-    .do(() => {
-      const mockFindDrivePaths = findiCloudPaths as jest.Mock;
-      mockFindDrivePaths.mockResolvedValueOnce([
-        {
-          path: '/test/path1',
-          score: 100,
-          isAccessible: true,
-          exists: true,
-          metadata: {
-            appName: 'Test App',
-            bundleId: 'com.test.app',
-            contents: ['file1', 'file2'],
-          },
-        },
-      ]);
-    })
-    .stdout()
-    .command(['find', '--detailed', '--table'])
-    .it('formats table output correctly');
 });

@@ -2,14 +2,13 @@ import {Args, Flags} from '@oclif/core';
 import fs from 'fs';
 import path from 'path';
 
+import {BaseCommand} from '../command';
 import {CopyOptions, FileCopier} from '../copy';
 import {colors} from '../utils/colors';
-import {BaseCommand} from './base';
 
 export default class CopyCommand extends BaseCommand {
   static id = 'copy';
   static description = 'Copy files to iCloud Drive';
-  static aliases = ['cp'];
 
   static examples = [
     '$ icloudy copy file.txt Word                # Copy file to Word app data',

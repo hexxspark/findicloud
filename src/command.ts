@@ -1,7 +1,7 @@
 import {confirm} from '@inquirer/prompts';
 import {Command, Flags} from '@oclif/core';
 
-import {CommandOptions} from '../types';
+import {SearchOptions} from './types';
 
 export interface PromptOptions {
   type: string;
@@ -10,10 +10,28 @@ export interface PromptOptions {
   default?: boolean;
 }
 
+// Command line specific options
+export interface CommandOptions extends SearchOptions {
+  showHelp: boolean;
+  jsonOutput: boolean;
+  noColor: boolean;
+  silent: boolean;
+  source?: string;
+  target?: string;
+  recursive?: boolean;
+  force?: boolean;
+  dryRun?: boolean;
+  app?: string;
+  pattern?: string;
+  overwrite?: boolean;
+  detailed?: boolean;
+  tableFormat?: boolean;
+  interactive?: boolean;
+}
+
 export abstract class BaseCommand extends Command {
   static id = 'base';
   static description = 'Base command';
-  static hidden = true;
   static aliases: string[] = [];
 
   static flags = {

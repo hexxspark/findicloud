@@ -2,9 +2,8 @@ import fs from 'fs';
 import {vol} from 'memfs';
 import path from 'path';
 
-import {FileCopier} from '../copy';
+import {CopyOptions, FileCopier} from '../copy';
 import * as findModule from '../find';
-import {CopyOptions} from '../types';
 
 // Mock path module to ensure consistent path format in tests
 jest.mock('path', () => {

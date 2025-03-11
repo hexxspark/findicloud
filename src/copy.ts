@@ -5,6 +5,7 @@ import * as path from 'path';
 import {findiCloudPaths} from './find';
 import {PathInfo, SearchOptions} from './types';
 
+// Types specific to copy functionality
 export interface CopyOptions {
   source: string;
   app?: string;
