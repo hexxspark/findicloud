@@ -576,4 +576,197 @@ describe('copyToiCloud', () => {
     // Verify result
     expect(result).toEqual(mockCopyResult);
   });
+
+  it('should work with target and options parameters', async () => {
+    // Mock FileCopier.copy method
+    const mockCopyResult = {
+      success: true,
+      targetPath: mockTargetPath,
+      copiedFiles: ['file1.txt'],
+      failedFiles: [],
+      errors: [],
+    };
+
+    // Use spy instead of replacing the entire class
+    const copySpy = jest.spyOn(FileCopier.prototype, 'copy').mockResolvedValueOnce(mockCopyResult);
+
+    const {copyToiCloud} = require('../copy');
+
+    // Call the function with target and options
+    const result = await copyToiCloud(mockSourcePath, 'Notes', {
+      recursive: true,
+      overwrite: true,
+    });
+
+    // Verify FileCopier.copy was called with correct parameters
+    expect(copySpy).toHaveBeenCalledWith({
+      source: mockSourcePath,
+      app: 'Notes',
+      recursive: true,
+      overwrite: true,
+    });
+
+    // Verify result
+    expect(result).toEqual(mockCopyResult);
+  });
+});
+
+// Tests for FileCopier.copy method overloads
+describe('FileCopier.copy overloads', () => {
+  // Use the same paths as in previous tests
+  const mockSourcePath = 'test/source';
+  const mockTargetPath = 'test/target';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    vol.reset();
+
+    // Mock findiCloudPaths to return a valid target path
+    jest.spyOn(findModule, 'findiCloudPaths').mockResolvedValue([
+      {
+        path: mockTargetPath,
+        isAccessible: true,
+        exists: true,
+        score: 100,
+        metadata: {
+          appName: 'Documents',
+          source: {source: 'common'},
+        },
+      },
+    ]);
+
+    // Mock FileCopier.analyze method
+    jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValue({
+      source: mockSourcePath,
+      targetPaths: [
+        {
+          path: mockTargetPath,
+          isAccessible: true,
+          exists: true,
+          score: 100,
+          metadata: {appName: 'Documents'},
+        },
+      ],
+      filesToCopy: [`${mockSourcePath}/file1.txt`],
+      totalFiles: 1,
+      totalSize: 100,
+    });
+
+    // Mock successful file copy
+    jest.spyOn(fs, 'createReadStream').mockImplementation(() => {
+      const mockStream = new (require('stream').Readable)();
+      mockStream._read = () => {};
+      // Emit 'end' event to simulate successful read
+      setTimeout(() => {
+        mockStream.push(null); // End the stream
+      }, 0);
+      return mockStream;
+    });
+
+    jest.spyOn(fs, 'createWriteStream').mockImplementation(() => {
+      const mockStream = new (require('stream').Writable)();
+      mockStream._write = (chunk: any, encoding: string, callback: () => void) => {
+        callback();
+      };
+      return mockStream;
+    });
+  });
+
+  it('should work with options object parameter', async () => {
+    // Re-mock the analyze method to ensure it returns the correct result
+    jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValueOnce({
+      source: mockSourcePath,
+      targetPaths: [
+        {
+          path: mockTargetPath,
+          isAccessible: true,
+          exists: true,
+          score: 100,
+          metadata: {appName: 'Documents'},
+        },
+      ],
+      filesToCopy: [`${mockSourcePath}/file1.txt`],
+      totalFiles: 1,
+      totalSize: 100,
+    });
+
+    // Mock existsSync to return false, indicating the target file does not exist
+    jest.spyOn(fs, 'existsSync').mockReturnValueOnce(false);
+
+    const fileCopier = new FileCopier();
+    const result = await fileCopier.copy({
+      source: mockSourcePath,
+      app: 'Documents',
+      recursive: true,
+      overwrite: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.copiedFiles).toHaveLength(1);
+    expect(result.copiedFiles[0]).toBe(`${mockSourcePath}/file1.txt`);
+    expect(result.failedFiles).toHaveLength(0);
+  });
+
+  it('should work with source and target parameters', async () => {
+    // Re-mock the analyze method to ensure it returns the correct result
+    jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValueOnce({
+      source: mockSourcePath,
+      targetPaths: [
+        {
+          path: mockTargetPath,
+          isAccessible: true,
+          exists: true,
+          score: 100,
+          metadata: {appName: 'Documents'},
+        },
+      ],
+      filesToCopy: [`${mockSourcePath}/file1.txt`],
+      totalFiles: 1,
+      totalSize: 100,
+    });
+
+    // Mock existsSync to return false, indicating the target file does not exist
+    jest.spyOn(fs, 'existsSync').mockReturnValueOnce(false);
+
+    const fileCopier = new FileCopier();
+    const result = await fileCopier.copy(mockSourcePath, 'Documents');
+
+    expect(result.success).toBe(true);
+    expect(result.copiedFiles).toHaveLength(1);
+    expect(result.copiedFiles[0]).toBe(`${mockSourcePath}/file1.txt`);
+    expect(result.failedFiles).toHaveLength(0);
+  });
+
+  it('should work with source, target, and options parameters', async () => {
+    // Re-mock the analyze method to ensure it returns the correct result
+    jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValueOnce({
+      source: mockSourcePath,
+      targetPaths: [
+        {
+          path: mockTargetPath,
+          isAccessible: true,
+          exists: true,
+          score: 100,
+          metadata: {appName: 'Documents'},
+        },
+      ],
+      filesToCopy: [`${mockSourcePath}/file1.txt`],
+      totalFiles: 1,
+      totalSize: 100,
+    });
+
+    // Mock existsSync to return false, indicating the target file does not exist
+    jest.spyOn(fs, 'existsSync').mockReturnValueOnce(false);
+
+    const fileCopier = new FileCopier();
+    const result = await fileCopier.copy(mockSourcePath, 'Documents', {
+      recursive: true,
+      overwrite: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.copiedFiles).toHaveLength(1);
+    expect(result.copiedFiles[0]).toBe(`${mockSourcePath}/file1.txt`);
+    expect(result.failedFiles).toHaveLength(0);
+  });
 });

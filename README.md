@@ -87,18 +87,25 @@ const notesPaths = await findICloudPaths({
 });
 console.log(notesPaths);
 
-// Copy a file to iCloud Drive
+// Copy a file to iCloud Drive root
 const copyResult = await copyToiCloud('./myfile.txt');
 console.log(`Copied to: ${copyResult.targetPath}`);
 
-// Copy files to a specific app's storage with options
-const advancedCopyResult = await copyToiCloud('./documents', {
-  app: 'Pages',
+// Copy to specific app with options (new syntax)
+const advancedCopyResult = await copyToiCloud('./documents', 'Pages', {
   pattern: '*.md',
   recursive: true,
   overwrite: true,
 });
 console.log(`Copied ${advancedCopyResult.copiedFiles.length} files`);
+
+// Copy to specific app with options (alternative syntax)
+const alternativeCopyResult = await copyToiCloud('./documents', {
+  app: 'Pages',
+  pattern: '*.md',
+  recursive: true,
+  overwrite: true,
+});
 ```
 
 ## API Reference
@@ -230,7 +237,14 @@ import {copyToiCloud} from 'icloudy';
 // Simple copy to iCloud Drive root
 const result = await copyToiCloud('./localfile.txt');
 
-// Copy to specific app with options
+// Copy to specific app with options (recommended syntax)
+const result = await copyToiCloud('./documents', 'Notes', {
+  pattern: '*.md',
+  recursive: true,
+  overwrite: true,
+});
+
+// Copy to specific app with options (alternative syntax)
 const result = await copyToiCloud('./documents', {
   app: 'Notes',
   pattern: '*.md',
@@ -239,8 +253,7 @@ const result = await copyToiCloud('./documents', {
 });
 
 // Analyze without copying (dry run)
-const result = await copyToiCloud('./project', {
-  app: 'Documents',
+const result = await copyToiCloud('./project', 'Documents', {
   pattern: '*.{js,ts,json}',
   recursive: true,
   dryRun: true,
@@ -259,11 +272,20 @@ if (result.success) {
 }
 
 // Copy with interactive confirmation (CLI-like experience)
-const interactiveResult = await copyToiCloud('./important-data', {
-  app: 'Documents',
+const interactiveResult = await copyToiCloud('./important-data', 'Documents', {
   interactive: true,
   detailed: true,
 });
+```
+
+#### Function Signatures
+
+```typescript
+// Copy to iCloud Drive root with options
+copyToiCloud(source: string, options?: CopyOptions): Promise<CopyResult>;
+
+// Copy to specific app with options
+copyToiCloud(source: string, target: string, options?: CopyOptions): Promise<CopyResult>;
 ```
 
 #### Using the FileCopier Class
@@ -276,11 +298,14 @@ import {FileCopier, CopyOptions} from 'icloudy';
 // Create a copier instance
 const copier = new FileCopier();
 
-// Basic copying
+// Basic copying (using options object)
 const result = await copier.copy({
   source: './localfile.txt',
   app: 'Notes',
 });
+
+// Basic copying (using parameters)
+const result = await copier.copy('./localfile.txt', 'Notes');
 
 // Analyze files without copying
 const analysis = await copier.analyze({
@@ -290,10 +315,8 @@ const analysis = await copier.analyze({
   recursive: true,
 });
 
-// Advanced copy options
-const advancedResult = await copier.copy({
-  source: './project',
-  app: 'Documents',
+// Advanced copy options (using parameters)
+const advancedResult = await copier.copy('./project', 'Documents', {
   pattern: '*.{js,ts,json}',
   recursive: true,
   overwrite: true,
@@ -301,6 +324,19 @@ const advancedResult = await copier.copy({
   force: false,
   interactive: true,
 });
+```
+
+#### Method Signatures
+
+```typescript
+// Copy using options object
+FileCopier.copy(options: CopyOptions): Promise<CopyResult>;
+
+// Copy using source, target and options parameters
+FileCopier.copy(source: string, target?: string, options?: CopyOptions): Promise<CopyResult>;
+
+// Analyze files without copying
+FileCopier.analyze(options: Omit<CopyOptions, 'dryRun' | 'overwrite'>): Promise<FileAnalysis>;
 ```
 
 #### Copy Options

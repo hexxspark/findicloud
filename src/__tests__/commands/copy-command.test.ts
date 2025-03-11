@@ -82,6 +82,8 @@ describe('copy command', () => {
   test
     .do(() => {
       const mockAnalyze = jest.spyOn(FileCopier.prototype, 'analyze');
+      const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
+
       mockAnalyze.mockResolvedValueOnce({
         source: '/test/source',
         targetPaths: [
@@ -95,6 +97,14 @@ describe('copy command', () => {
         totalFiles: 1,
         totalSize: 1024,
       } as FileAnalysis);
+
+      mockCopy.mockResolvedValueOnce({
+        success: true,
+        targetPath: '/icloud/docs',
+        copiedFiles: ['/test/source/file1.txt'],
+        failedFiles: [],
+        errors: [],
+      } as CopyResult);
     })
     .stdout()
     .command(['copy', './documents', 'docs', '--dry-run'])

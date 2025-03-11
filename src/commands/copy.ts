@@ -75,9 +75,8 @@ export default class CopyCommand extends BaseCommand {
     const options = this.getCommandOptions(flags);
 
     try {
-      const copyOptions: CopyOptions = {
-        source: args.source,
-        app: args.app,
+      // 准备复制选项
+      const copyOptions: Omit<CopyOptions, 'source' | 'app'> = {
         pattern: flags.pattern,
         recursive: flags.recursive || false,
         overwrite: flags.force || false,
@@ -94,17 +93,22 @@ export default class CopyCommand extends BaseCommand {
 
       const fileCopier = new FileCopier();
 
+      // 使用新的函数调用方式
       // First, analyze what files would be copied
       const analysis = await fileCopier.analyze({
-        source: copyOptions.source,
-        app: copyOptions.app,
-        pattern: copyOptions.pattern,
-        recursive: copyOptions.recursive,
+        source: args.source,
+        app: args.app,
+        pattern: flags.pattern,
+        recursive: flags.recursive,
       });
 
       // Show analysis
       if (!options.silent) {
-        this.displayAnalysis(analysis, copyOptions);
+        this.displayAnalysis(analysis, {
+          source: args.source,
+          app: args.app,
+          ...copyOptions,
+        });
       }
 
       // If interactive mode is enabled and not skipping confirmation
@@ -112,32 +116,23 @@ export default class CopyCommand extends BaseCommand {
         const {confirm} = await import('@inquirer/prompts');
         const shouldProceed = await confirm({message: 'Do you want to proceed with the copy operation?'});
         if (!shouldProceed) {
-          this.log(colors.info('Copy operation cancelled by user'));
+          this.log(colors.warning('Operation cancelled by user'));
           return;
         }
       }
 
-      // If not a dry run, proceed with copy
-      if (!copyOptions.dryRun) {
-        if (!options.silent) {
-          this.log(colors.info('\nCopying files...'));
-        }
+      // 使用新的函数调用方式执行复制
+      const result = await fileCopier.copy(args.source, args.app, copyOptions);
 
-        const result = await fileCopier.copy(copyOptions);
-
-        if (!options.silent) {
-          if (result.success) {
-            this.log(colors.success('\nFiles copied successfully!'));
-          } else {
-            this.log(colors.error('\nSome files failed to copy:'));
-            result.failedFiles.forEach(file => {
-              this.log(colors.error(`  ${file}`));
-            });
-            result.errors.forEach(error => {
-              this.log(colors.error(`  Error: ${error.message}`));
-            });
-            this.error('Copy operation failed');
-          }
+      if (!options.silent) {
+        if (result.success) {
+          this.log(colors.success(`\nSuccessfully copied ${result.copiedFiles.length} files to ${result.targetPath}`));
+        } else {
+          this.log(colors.error(`\nFailed to copy ${result.failedFiles.length} files`));
+          result.errors.forEach(err => {
+            this.log(colors.error(`- ${err.message}`));
+          });
+          this.error('Copy operation failed');
         }
       }
     } catch (error: any) {

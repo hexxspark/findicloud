@@ -47,18 +47,42 @@ export interface FileAnalysis {
  * const result = await copyToiCloud('./localfile.txt');
  *
  * // Copy to specific app with options
- * const result = await copyToiCloud('./documents', {
- *   app: 'Notes',
+ * const result = await copyToiCloud('./documents', 'Notes', {
  *   pattern: '*.md',
  *   recursive: true,
  *   overwrite: true
  * });
  * ```
  */
-export async function copyToiCloud(source: string, options: Omit<CopyOptions, 'source'> = {}): Promise<CopyResult> {
+export async function copyToiCloud(source: string, options?: Omit<CopyOptions, 'source' | 'app'>): Promise<CopyResult>;
+export async function copyToiCloud(
+  source: string,
+  target: string,
+  options?: Omit<CopyOptions, 'source' | 'app'>,
+): Promise<CopyResult>;
+export async function copyToiCloud(
+  source: string,
+  targetOrOptions?: string | Omit<CopyOptions, 'source' | 'app'>,
+  maybeOptions?: Omit<CopyOptions, 'source' | 'app'>,
+): Promise<CopyResult> {
   const copier = new FileCopier();
+
+  // Processing parameters
+  let target: string | undefined;
+  let options: Omit<CopyOptions, 'source'> = {};
+
+  if (typeof targetOrOptions === 'string') {
+    // Call form: copyToiCloud(source, target, options)
+    target = targetOrOptions;
+    options = maybeOptions || {};
+  } else {
+    // Call form: copyToiCloud(source, options)
+    options = targetOrOptions || {};
+  }
+
   return copier.copy({
     source,
+    app: target,
     ...options,
   });
 }
@@ -91,7 +115,41 @@ export class FileCopier {
     };
   }
 
-  async copy(options: CopyOptions): Promise<CopyResult> {
+  /**
+   * Copy files to iCloud Drive
+   *
+   * @param options Copy options
+   * @returns Copy result
+   */
+  async copy(options: CopyOptions): Promise<CopyResult>;
+  /**
+   * Copy files to iCloud Drive
+   *
+   * @param source Source file or directory path
+   * @param target Target app name (optional, if not provided files will be copied to iCloud Drive root)
+   * @param options Copy options
+   * @returns Copy result
+   */
+  async copy(source: string, target?: string, options?: Omit<CopyOptions, 'source' | 'app'>): Promise<CopyResult>;
+  async copy(
+    sourceOrOptions: string | CopyOptions,
+    targetOrOptions?: string | Omit<CopyOptions, 'source' | 'app'>,
+    maybeOptions?: Omit<CopyOptions, 'source' | 'app'>,
+  ): Promise<CopyResult> {
+    let options: CopyOptions;
+
+    if (typeof sourceOrOptions === 'string') {
+      // Call form: copy(source, target, options)
+      options = {
+        source: sourceOrOptions,
+        app: typeof targetOrOptions === 'string' ? targetOrOptions : undefined,
+        ...(typeof targetOrOptions === 'string' ? maybeOptions || {} : targetOrOptions || {}),
+      };
+    } else {
+      // Call form: copy(options)
+      options = sourceOrOptions;
+    }
+
     const analysis = await this.analyze(options);
     const result: CopyResult = {
       success: true,
