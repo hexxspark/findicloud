@@ -106,7 +106,10 @@ export function createDriveLocator(platformOverride?: NodeJS.Platform): DriveLoc
   return DriveLocator.getInstance(platformOverride);
 }
 
-export async function findDrivePaths(options?: SearchOptions, platformOverride?: NodeJS.Platform): Promise<PathInfo[]> {
+export async function findiCloudPaths(
+  options?: SearchOptions,
+  platformOverride?: NodeJS.Platform,
+): Promise<PathInfo[]> {
   if (process.platform !== 'darwin' && process.platform !== 'win32' && !platformOverride) {
     throw new Error('Unsupported platform: ' + process.platform);
   }

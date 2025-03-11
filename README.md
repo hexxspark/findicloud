@@ -75,7 +75,7 @@ pnpm add icloudy
 ## Quick Start
 
 ```typescript
-import {findICloudPaths, copyToICloud} from 'icloudy';
+import {findICloudPaths, copyToiCloud} from 'icloudy';
 
 // Find all iCloud paths
 const paths = await findICloudPaths();
@@ -88,11 +88,11 @@ const notesPaths = await findICloudPaths({
 console.log(notesPaths);
 
 // Copy a file to iCloud Drive
-const copyResult = await copyToICloud('./myfile.txt');
+const copyResult = await copyToiCloud('./myfile.txt');
 console.log(`Copied to: ${copyResult.targetPath}`);
 
 // Copy files to a specific app's storage with options
-const advancedCopyResult = await copyToICloud('./documents', {
+const advancedCopyResult = await copyToiCloud('./documents', {
   targetApp: 'Pages',
   pattern: '*.md',
   recursive: true,
@@ -225,13 +225,13 @@ const reliablePaths = await findICloudPaths({minScore: 75});
 #### Using the Global Copy Function
 
 ```typescript
-import {copyToICloud} from 'icloudy';
+import {copyToiCloud} from 'icloudy';
 
 // Simple copy to iCloud Drive root
-const result = await copyToICloud('./localfile.txt');
+const result = await copyToiCloud('./localfile.txt');
 
 // Copy to specific app with options
-const result = await copyToICloud('./documents', {
+const result = await copyToiCloud('./documents', {
   targetApp: 'Notes',
   pattern: '*.md',
   recursive: true,
@@ -239,7 +239,7 @@ const result = await copyToICloud('./documents', {
 });
 
 // Analyze without copying (dry run)
-const result = await copyToICloud('./project', {
+const result = await copyToiCloud('./project', {
   targetApp: 'Documents',
   pattern: '*.{js,ts,json}',
   recursive: true,
@@ -259,7 +259,7 @@ if (result.success) {
 }
 
 // Copy with interactive confirmation (CLI-like experience)
-const interactiveResult = await copyToICloud('./important-data', {
+const interactiveResult = await copyToiCloud('./important-data', {
   targetApp: 'Documents',
   interactive: true,
   detailed: true,

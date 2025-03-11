@@ -1,6 +1,6 @@
 import {test} from '@oclif/test';
 
-import {findDrivePaths} from '../../find';
+import {findiCloudPaths} from '../../find';
 
 jest.mock('../../find');
 
@@ -13,7 +13,7 @@ describe('find command', () => {
 
   test
     .do(() => {
-      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      const mockFindDrivePaths = findiCloudPaths as jest.Mock;
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',
@@ -30,7 +30,7 @@ describe('find command', () => {
 
   test
     .do(() => {
-      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      const mockFindDrivePaths = findiCloudPaths as jest.Mock;
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',
@@ -50,7 +50,7 @@ describe('find command', () => {
 
   test
     .do(() => {
-      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      const mockFindDrivePaths = findiCloudPaths as jest.Mock;
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',
@@ -70,7 +70,7 @@ describe('find command', () => {
 
   test
     .do(() => {
-      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      const mockFindDrivePaths = findiCloudPaths as jest.Mock;
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',
@@ -87,7 +87,7 @@ describe('find command', () => {
 
   test
     .do(() => {
-      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      const mockFindDrivePaths = findiCloudPaths as jest.Mock;
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',
@@ -106,7 +106,7 @@ describe('find command', () => {
 
   test
     .do(() => {
-      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      const mockFindDrivePaths = findiCloudPaths as jest.Mock;
       mockFindDrivePaths.mockResolvedValueOnce([]);
     })
     .stdout()
@@ -115,7 +115,7 @@ describe('find command', () => {
 
   test
     .do(() => {
-      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      const mockFindDrivePaths = findiCloudPaths as jest.Mock;
       mockFindDrivePaths.mockResolvedValueOnce([]);
     })
     .stdout()
@@ -124,7 +124,7 @@ describe('find command', () => {
 
   test
     .do(() => {
-      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      const mockFindDrivePaths = findiCloudPaths as jest.Mock;
       mockFindDrivePaths.mockResolvedValueOnce([]);
     })
     .stdout()
@@ -133,7 +133,7 @@ describe('find command', () => {
 
   test
     .do(() => {
-      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      const mockFindDrivePaths = findiCloudPaths as jest.Mock;
       mockFindDrivePaths.mockRejectedValueOnce(new Error('Test error'));
     })
     .stdout()
@@ -144,7 +144,7 @@ describe('find command', () => {
 
   test
     .do(() => {
-      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      const mockFindDrivePaths = findiCloudPaths as jest.Mock;
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',

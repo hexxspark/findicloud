@@ -156,8 +156,8 @@ describe('FileCopier', () => {
     jest.clearAllMocks();
     vol.reset();
 
-    // Mock findDrivePaths to return a valid target path
-    jest.spyOn(findModule, 'findDrivePaths').mockResolvedValue([
+    // Mock findiCloudPaths to return a valid target path
+    jest.spyOn(findModule, 'findiCloudPaths').mockResolvedValue([
       {
         path: mockTargetPath,
         isAccessible: true,
@@ -493,8 +493,8 @@ describe('FileCopier', () => {
   });
 });
 
-// Tests for copyToICloud function
-describe('copyToICloud', () => {
+// Tests for copyToiCloud function
+describe('copyToiCloud', () => {
   // Use the same paths as in previous tests
   const mockSourcePath = 'test/source';
   const mockTargetPath = 'test/target';
@@ -503,8 +503,8 @@ describe('copyToICloud', () => {
     jest.clearAllMocks();
     vol.reset();
 
-    // Mock findDrivePaths to return a valid target path
-    jest.spyOn(findModule, 'findDrivePaths').mockResolvedValue([
+    // Mock findiCloudPaths to return a valid target path
+    jest.spyOn(findModule, 'findiCloudPaths').mockResolvedValue([
       {
         path: mockTargetPath,
         isAccessible: true,
@@ -531,10 +531,10 @@ describe('copyToICloud', () => {
     // Use spy instead of replacing the entire class
     const copySpy = jest.spyOn(FileCopier.prototype, 'copy').mockResolvedValueOnce(mockCopyResult);
 
-    const {copyToICloud} = require('../copy');
+    const {copyToiCloud} = require('../copy');
 
     // Call the function
-    const result = await copyToICloud(mockSourcePath, {
+    const result = await copyToiCloud(mockSourcePath, {
       targetApp: 'Documents',
       recursive: true,
     });
@@ -563,10 +563,10 @@ describe('copyToICloud', () => {
     // Use spy instead of replacing the entire class
     const copySpy = jest.spyOn(FileCopier.prototype, 'copy').mockResolvedValueOnce(mockCopyResult);
 
-    const {copyToICloud} = require('../copy');
+    const {copyToiCloud} = require('../copy');
 
     // Call the function
-    const result = await copyToICloud(mockSourcePath);
+    const result = await copyToiCloud(mockSourcePath);
 
     // Verify FileCopier.copy was called with only source parameter
     expect(copySpy).toHaveBeenCalledWith({
