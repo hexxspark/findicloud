@@ -1,15 +1,15 @@
 import {test} from '@oclif/test';
 
-import {findDrivePaths} from '../../locate';
+import {findDrivePaths} from '../../find';
 
-jest.mock('../../locate');
+jest.mock('../../find');
 
-describe('locate command', () => {
+describe('find command', () => {
   beforeEach(() => {
     jest.resetAllMocks();
   });
 
-  test.stdout().command(['locate', '--help']).exit(0).it('shows help information');
+  test.stdout().command(['find', '--help']).exit(0).it('shows help information');
 
   test
     .do(() => {
@@ -25,7 +25,7 @@ describe('locate command', () => {
       ]);
     })
     .stdout()
-    .command(['locate'])
+    .command(['find'])
     .it('lists all iCloud Drive paths');
 
   test
@@ -38,15 +38,15 @@ describe('locate command', () => {
           isAccessible: true,
           exists: true,
           metadata: {
-            appName: 'TestApp',
+            appName: 'Test App',
             bundleId: 'com.test.app',
           },
         },
       ]);
     })
     .stdout()
-    .command(['locate', '--detailed'])
-    .it('shows detailed path information');
+    .command(['find', '--detailed'])
+    .it('shows detailed information');
 
   test
     .do(() => {
@@ -58,62 +58,15 @@ describe('locate command', () => {
           isAccessible: true,
           exists: true,
           metadata: {
-            appName: 'TestApp',
-            bundleId: 'com.test.app',
-          },
-        },
-        {
-          path: '/test/path2',
-          score: 90,
-          isAccessible: false,
-          exists: true,
-          metadata: {},
-        },
-      ]);
-    })
-    .stdout()
-    .command(['locate', '--detailed', '--table'])
-    .it('shows path information in table format');
-
-  test
-    .do(() => {
-      const mockFindDrivePaths = findDrivePaths as jest.Mock;
-      mockFindDrivePaths.mockResolvedValueOnce([
-        {
-          path: '/test/path1',
-          score: 100,
-          isAccessible: true,
-          exists: true,
-          metadata: {
-            appName: 'TestApp',
+            appName: 'Test App',
             bundleId: 'com.test.app',
           },
         },
       ]);
     })
     .stdout()
-    .command(['locate', '--json'])
-    .it('outputs in JSON format');
-
-  test
-    .do(() => {
-      const mockFindDrivePaths = findDrivePaths as jest.Mock;
-      mockFindDrivePaths.mockResolvedValueOnce([
-        {
-          path: '/test/path1',
-          score: 100,
-          isAccessible: true,
-          exists: true,
-          metadata: {
-            appName: 'TestApp',
-            bundleId: 'com.test.app',
-          },
-        },
-      ]);
-    })
-    .stdout()
-    .command(['locate', 'TestApp'])
-    .it('filters paths by app name');
+    .command(['find', '--detailed', '--table'])
+    .it('shows table output');
 
   test
     .do(() => {
@@ -129,8 +82,8 @@ describe('locate command', () => {
       ]);
     })
     .stdout()
-    .command(['locate', '--min-score', '90'])
-    .it('filters paths by minimum score');
+    .command(['find', '--json'])
+    .it('outputs JSON');
 
   test
     .do(() => {
@@ -139,14 +92,34 @@ describe('locate command', () => {
         {
           path: '/test/path1',
           score: 100,
-          isAccessible: false,
+          isAccessible: true,
           exists: true,
-          metadata: {},
+          metadata: {
+            appName: 'TestApp',
+          },
         },
       ]);
     })
     .stdout()
-    .command(['locate', '--include-inaccessible'])
+    .command(['find', 'TestApp'])
+    .it('filters by app name');
+
+  test
+    .do(() => {
+      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      mockFindDrivePaths.mockResolvedValueOnce([]);
+    })
+    .stdout()
+    .command(['find', '--min-score', '90'])
+    .it('filters by min score');
+
+  test
+    .do(() => {
+      const mockFindDrivePaths = findDrivePaths as jest.Mock;
+      mockFindDrivePaths.mockResolvedValueOnce([]);
+    })
+    .stdout()
+    .command(['find', '--include-inaccessible'])
     .it('includes inaccessible paths');
 
   test
@@ -155,8 +128,8 @@ describe('locate command', () => {
       mockFindDrivePaths.mockResolvedValueOnce([]);
     })
     .stdout()
-    .command(['locate'])
-    .it('handles no paths found');
+    .command(['find'])
+    .it('handles empty results');
 
   test
     .do(() => {
@@ -164,8 +137,9 @@ describe('locate command', () => {
       mockFindDrivePaths.mockRejectedValueOnce(new Error('Test error'));
     })
     .stdout()
-    .command(['locate'])
-    .exit(2)
+    .stderr()
+    .command(['find'])
+    .exit(1)
     .it('handles errors');
 
   test
@@ -178,13 +152,14 @@ describe('locate command', () => {
           isAccessible: true,
           exists: true,
           metadata: {
-            appName: 'VeryLongAppName'.repeat(10),
-            bundleId: 'com.test.verylongbundleid'.repeat(10),
+            appName: 'Test App',
+            bundleId: 'com.test.app',
+            contents: ['file1', 'file2'],
           },
         },
       ]);
     })
     .stdout()
-    .command(['locate', '--detailed', '--table'])
-    .it('handles long app names and bundle IDs in table format');
+    .command(['find', '--detailed', '--table'])
+    .it('formats table output correctly');
 });

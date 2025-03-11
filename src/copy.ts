@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import {minimatch} from 'minimatch';
 import * as path from 'path';
 
-import {findDrivePaths} from './locate';
+import {findDrivePaths} from './find';
 import {PathInfo, SearchOptions} from './types';
 
 export interface CopyOptions {
@@ -32,6 +32,35 @@ export interface FileAnalysis {
   filesToCopy: string[];
   totalFiles: number;
   totalSize: number;
+}
+
+/**
+ * Copy files to iCloud Drive
+ *
+ * @param source Source file or directory path
+ * @param options Copy options
+ * @returns Copy result
+ *
+ * @example
+ * ```typescript
+ * // Simple copy to iCloud Drive root
+ * const result = await copyToICloud('./localfile.txt');
+ *
+ * // Copy to specific app with options
+ * const result = await copyToICloud('./documents', {
+ *   targetApp: 'Notes',
+ *   pattern: '*.md',
+ *   recursive: true,
+ *   overwrite: true
+ * });
+ * ```
+ */
+export async function copyToICloud(source: string, options: Omit<CopyOptions, 'source'> = {}): Promise<CopyResult> {
+  const copier = new FileCopier();
+  return copier.copy({
+    source,
+    ...options,
+  });
 }
 
 export class FileCopier {

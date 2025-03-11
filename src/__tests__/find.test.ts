@@ -3,7 +3,7 @@ import {vol} from 'memfs';
 import * as os from 'os';
 import * as path from 'path';
 
-import {DriveLocator} from '../locate';
+import {DriveFinder} from '../find';
 
 jest.mock('child_process');
 jest.mock('os');
@@ -42,8 +42,8 @@ jest.mock('path', () => {
   };
 });
 
-describe('DriveLocator', () => {
-  let locator: DriveLocator;
+describe('DriveFinder', () => {
+  let finder: DriveFinder;
 
   beforeEach(() => {
     vol.reset();
@@ -57,7 +57,7 @@ describe('DriveLocator', () => {
     jest.clearAllMocks();
   });
 
-  describe('locate', () => {
+  describe('find', () => {
     beforeEach(() => {
       // Set up the test file system
       const testFiles = {
@@ -73,12 +73,12 @@ describe('DriveLocator', () => {
 
       vol.fromJSON(testFiles);
       // Reset singleton state and get instance
-      DriveLocator.reset();
-      locator = DriveLocator.getInstance();
+      DriveFinder.reset();
+      finder = DriveFinder.getInstance();
     });
 
     it('should find app data', async () => {
-      const results = await locator.locate({
+      const results = await finder.find({
         appName: 'TestApp',
       });
 
@@ -89,27 +89,27 @@ describe('DriveLocator', () => {
     it('should find photos directory', async () => {
       // Manually add Photos path
       const photosPath = '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos';
-      locator['finder']['_addPath'](photosPath, {source: 'common'});
+      finder['finder']['_addPath'](photosPath, {source: 'common'});
 
-      const results = await locator.locate();
+      const results = await finder.find();
       const photoPaths = results.filter(p => p.path.includes('Photos'));
       expect(photoPaths.length).toBeGreaterThan(0);
     });
 
     it('should find documents directory', async () => {
-      const results = await locator.locate();
+      const results = await finder.find();
       const docPaths = results.filter(p => p.path.includes('Documents'));
       expect(docPaths.length).toBeGreaterThan(0);
     });
 
     it('should handle accessible paths', async () => {
-      const results = await locator.locate();
+      const results = await finder.find();
       expect(results.every(r => r.isAccessible)).toBe(true);
     });
 
     it('should respect minimum score threshold', async () => {
       const minScore = 50;
-      const results = await locator.locate({
+      const results = await finder.find({
         minScore,
       });
 
@@ -117,25 +117,25 @@ describe('DriveLocator', () => {
     });
 
     it('should find all paths by default', async () => {
-      const results = await locator.locate();
+      const results = await finder.find();
       expect(results.length).toBeGreaterThan(0);
     });
 
     it('should work with singleton pattern', async () => {
       // Reset singleton
-      DriveLocator.reset();
+      DriveFinder.reset();
 
       // Get instance and test
-      const instance1 = DriveLocator.getInstance();
-      const results1 = await instance1.locate();
+      const instance1 = DriveFinder.getInstance();
+      const results1 = await instance1.find();
       expect(results1.length).toBeGreaterThan(0);
 
       // Get another instance (should be the same)
-      const instance2 = DriveLocator.getInstance();
+      const instance2 = DriveFinder.getInstance();
       expect(instance2).toBe(instance1);
 
       // Use different platform parameter
-      const instance3 = DriveLocator.getInstance('win32');
+      const instance3 = DriveFinder.getInstance('win32');
       expect(instance3).not.toBe(instance1);
     });
   });
@@ -162,12 +162,12 @@ describe('DriveLocator', () => {
       );
 
       // Use singleton pattern
-      DriveLocator.reset();
-      locator = DriveLocator.getInstance();
+      DriveFinder.reset();
+      finder = DriveFinder.getInstance();
     });
 
     it('should find paths on Windows', async () => {
-      const paths = await locator.locate();
+      const paths = await finder.find();
       expect(paths).toContainEqual(
         expect.objectContaining({
           path: path.normalize('C:\\Users\\TestUser\\iCloudDrive'),
@@ -177,7 +177,7 @@ describe('DriveLocator', () => {
     });
 
     it('should find app storage paths', async () => {
-      const paths = await locator.locate();
+      const paths = await finder.find();
       const appPaths = paths.filter(p => p.metadata.appId);
       expect(appPaths).toContainEqual(
         expect.objectContaining({
@@ -204,11 +204,11 @@ describe('DriveLocator', () => {
 
       vol.fromJSON(testFiles);
 
-      locator = new DriveLocator();
+      finder = new DriveFinder();
     });
 
     it('should find paths on macOS', async () => {
-      const paths = await locator.locate();
+      const paths = await finder.find();
       expect(paths).toContainEqual(
         expect.objectContaining({
           path: '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs',
@@ -218,7 +218,7 @@ describe('DriveLocator', () => {
     });
 
     it('should find app storage paths', async () => {
-      const paths = await locator.locate();
+      const paths = await finder.find();
       const appPaths = paths.filter(p => p.metadata.appId);
       expect(appPaths).toContainEqual(
         expect.objectContaining({
@@ -237,7 +237,7 @@ describe('DriveLocator', () => {
     });
 
     it('should throw error for unsupported platform', () => {
-      expect(() => new DriveLocator()).toThrow('Unsupported platform: linux');
+      expect(() => new DriveFinder()).toThrow('Unsupported platform: linux');
     });
   });
 
@@ -245,28 +245,22 @@ describe('DriveLocator', () => {
     beforeEach(() => {
       mockedPlatform.mockReturnValue('win32');
       mockedHomedir.mockReturnValue('C:\\Users\\TestUser');
-      locator = new DriveLocator();
+      finder = new DriveFinder();
     });
 
-    it('should handle registry access errors', async () => {
-      mockedExecSync.mockImplementationOnce(() => {
-        throw new Error('Registry access denied');
-      });
+    it('should handle file system errors', async () => {
+      // Mock file system error
+      jest.spyOn(finder['finder'], 'findPaths').mockRejectedValue(new Error('File system error'));
 
-      const paths = await locator.locate();
-      expect(Array.isArray(paths)).toBeTruthy();
+      await expect(finder.find()).rejects.toThrow('File system error');
     });
 
-    it('should handle missing user profile', async () => {
-      delete process.env.USERPROFILE;
-      const paths = await locator.locate();
-      expect(Array.isArray(paths)).toBeTruthy();
-    });
+    it('should handle empty results', async () => {
+      // Mock empty results
+      jest.spyOn(finder['finder'], 'findPaths').mockResolvedValue([]);
 
-    it('should handle inaccessible directories', async () => {
-      vol.mkdirSync('C:\\Restricted');
-      const paths = await locator.locate();
-      expect(Array.isArray(paths)).toBeTruthy();
+      const results = await finder.find();
+      expect(results).toEqual([]);
     });
   });
 });

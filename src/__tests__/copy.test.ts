@@ -3,7 +3,7 @@ import {vol} from 'memfs';
 import path from 'path';
 
 import {FileCopier} from '../copy';
-import * as locateModule from '../locate';
+import * as findModule from '../find';
 import {CopyOptions} from '../types';
 
 // Mock path module to ensure consistent path format in tests
@@ -137,7 +137,7 @@ jest.mock('fs', () => {
 });
 
 // Mock locate module
-jest.mock('../locate');
+jest.mock('../find');
 
 describe('FileCopier', () => {
   // Use paths without leading slash to avoid Windows issues
@@ -157,7 +157,7 @@ describe('FileCopier', () => {
     vol.reset();
 
     // Mock findDrivePaths to return a valid target path
-    jest.spyOn(locateModule, 'findDrivePaths').mockResolvedValue([
+    jest.spyOn(findModule, 'findDrivePaths').mockResolvedValue([
       {
         path: mockTargetPath,
         isAccessible: true,
@@ -490,5 +490,90 @@ describe('FileCopier', () => {
       expect(analysis.filesToCopy).toContain(`${mockSourcePath}/file1.txt`);
       expect(analysis.filesToCopy).toContain(`${mockSourcePath}/dir1/file2.txt`);
     });
+  });
+});
+
+// Tests for copyToICloud function
+describe('copyToICloud', () => {
+  // Use the same paths as in previous tests
+  const mockSourcePath = 'test/source';
+  const mockTargetPath = 'test/target';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    vol.reset();
+
+    // Mock findDrivePaths to return a valid target path
+    jest.spyOn(findModule, 'findDrivePaths').mockResolvedValue([
+      {
+        path: mockTargetPath,
+        isAccessible: true,
+        exists: true,
+        score: 100,
+        metadata: {
+          appName: 'Documents',
+          source: {source: 'common'},
+        },
+      },
+    ]);
+  });
+
+  it('should delegate to FileCopier', async () => {
+    // Mock FileCopier.copy method
+    const mockCopyResult = {
+      success: true,
+      targetPath: mockTargetPath,
+      copiedFiles: ['file1.txt'],
+      failedFiles: [],
+      errors: [],
+    };
+
+    // Use spy instead of replacing the entire class
+    const copySpy = jest.spyOn(FileCopier.prototype, 'copy').mockResolvedValueOnce(mockCopyResult);
+
+    const {copyToICloud} = require('../copy');
+
+    // Call the function
+    const result = await copyToICloud(mockSourcePath, {
+      targetApp: 'Documents',
+      recursive: true,
+    });
+
+    // Verify FileCopier.copy was called
+    expect(copySpy).toHaveBeenCalledWith({
+      source: mockSourcePath,
+      targetApp: 'Documents',
+      recursive: true,
+    });
+
+    // Verify result
+    expect(result).toEqual(mockCopyResult);
+  });
+
+  it('should work with default options', async () => {
+    // Mock FileCopier.copy method
+    const mockCopyResult = {
+      success: true,
+      targetPath: mockTargetPath,
+      copiedFiles: ['file1.txt'],
+      failedFiles: [],
+      errors: [],
+    };
+
+    // Use spy instead of replacing the entire class
+    const copySpy = jest.spyOn(FileCopier.prototype, 'copy').mockResolvedValueOnce(mockCopyResult);
+
+    const {copyToICloud} = require('../copy');
+
+    // Call the function
+    const result = await copyToICloud(mockSourcePath);
+
+    // Verify FileCopier.copy was called with only source parameter
+    expect(copySpy).toHaveBeenCalledWith({
+      source: mockSourcePath,
+    });
+
+    // Verify result
+    expect(result).toEqual(mockCopyResult);
   });
 });

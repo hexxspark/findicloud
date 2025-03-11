@@ -1,21 +1,21 @@
 import {Args, Flags} from '@oclif/core';
 
-import {findDrivePaths} from '../locate';
+import {findDrivePaths} from '../find';
 import {CommandOptions, PathInfo} from '../types';
 import {colors} from '../utils/colors';
 import {BaseCommand} from './base';
 
-export default class LocateCommand extends BaseCommand {
-  static id = 'locate';
-  static description = 'Locate iCloud Drive paths and files';
+export default class FindCommand extends BaseCommand {
+  static id = 'find';
+  static description = 'Find iCloud Drive paths and files';
 
-  static aliases = ['loc'];
+  static aliases = ['f'];
 
   static examples = [
-    '$ icloudy locate                    # Locate all iCloud Drive paths',
-    '$ icloudy locate -d                 # Show detailed information',
-    '$ icloudy locate -t                 # Show results in table format',
-    '$ icloudy locate Word               # Locate Word app data location',
+    '$ icloudy find                    # Find all iCloud Drive paths',
+    '$ icloudy find -d                 # Show detailed information',
+    '$ icloudy find -t                 # Show results in table format',
+    '$ icloudy find Word               # Find Word app data location',
   ];
 
   static flags = {
@@ -48,7 +48,7 @@ export default class LocateCommand extends BaseCommand {
   };
 
   public async run(): Promise<void> {
-    const {args, flags} = await this.parse(LocateCommand);
+    const {args, flags} = await this.parse(FindCommand);
     const options = this.getCommandOptions(flags);
 
     try {
@@ -64,7 +64,7 @@ export default class LocateCommand extends BaseCommand {
       options.minScore = flags['min-score'];
 
       if (!options.silent && options.detailed) {
-        this.log(colors.info('Locating iCloud Drive paths...'));
+        this.log(colors.info('Finding iCloud Drive paths...'));
       }
 
       const paths = await findDrivePaths(options);
@@ -118,7 +118,7 @@ export default class LocateCommand extends BaseCommand {
         });
       }
     } catch (error: any) {
-      this.error(error);
+      this.error(error, {exit: 1});
     }
   }
 
@@ -248,11 +248,7 @@ export default class LocateCommand extends BaseCommand {
       (code >= 0xac00 && code <= 0xd7a3) || // Hangul Syllables
       (code >= 0xf900 && code <= 0xfaff) || // CJK Compatibility Ideographs
       (code >= 0xff01 && code <= 0xff60) || // Fullwidth Forms
-      (code >= 0xffe0 && code <= 0xffe6) || // Fullwidth Forms
-      // Emojis and symbols
-      (code >= 0x1f300 && code <= 0x1f6ff) || // Miscellaneous Symbols and Pictographs
-      (code >= 0x1f900 && code <= 0x1f9ff) || // Supplemental Symbols and Pictographs
-      (code >= 0x2600 && code <= 0x26ff) // Miscellaneous Symbols
+      (code >= 0xffe0 && code <= 0xffe6) // Fullwidth Forms
     ) {
       return 2;
     }
@@ -261,20 +257,27 @@ export default class LocateCommand extends BaseCommand {
   }
 
   private getStringWidth(str: string): number {
-    return Array.from(str).reduce((width, char) => width + this.getCharWidth(char), 0);
+    let width = 0;
+    for (const char of str) {
+      width += this.getCharWidth(char);
+    }
+    return width;
   }
 
   private stripAnsi(str: string): string {
-    return str.replace(/\u001b\[\d+m/g, '');
+    // Simple ANSI escape code stripper
+    return str.replace(/\x1B\[\d+m/g, '');
   }
 
   private extractColorPrefix(str: string): string {
-    const match = str.match(/^\u001b\[\d+m/);
+    // Extract color prefix from a string with ANSI codes
+    const match = str.match(/^(\x1B\[\d+m)+/);
     return match ? match[0] : '';
   }
 
   private extractColorSuffix(str: string): string {
-    const match = str.match(/\u001b\[0m$/);
+    // Extract color suffix from a string with ANSI codes
+    const match = str.match(/(\x1B\[\d+m)+$/);
     return match ? match[0] : '';
   }
 }
