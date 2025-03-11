@@ -7,14 +7,14 @@ import {PathInfo, SearchOptions} from './types';
 
 export interface CopyOptions {
   source: string;
-  targetApp?: string;
+  app?: string;
   pattern?: string;
   recursive?: boolean;
   overwrite?: boolean;
   dryRun?: boolean;
   detailed?: boolean;
   table?: boolean;
-  skipConfirmation?: boolean;
+  force?: boolean;
   interactive?: boolean;
 }
 
@@ -48,7 +48,7 @@ export interface FileAnalysis {
  *
  * // Copy to specific app with options
  * const result = await copyToiCloud('./documents', {
- *   targetApp: 'Notes',
+ *   app: 'Notes',
  *   pattern: '*.md',
  *   recursive: true,
  *   overwrite: true
@@ -130,7 +130,7 @@ export class FileCopier {
 
   private async findTargetPaths(options: CopyOptions): Promise<PathInfo[]> {
     const searchOptions: SearchOptions = {
-      appName: options.targetApp,
+      appName: options.app,
       minScore: 10, // Ensure path reliability
     };
 

@@ -146,7 +146,7 @@ describe('FileCopier', () => {
 
   const mockOptions: CopyOptions = {
     source: mockSourcePath,
-    targetApp: 'Documents',
+    app: 'Documents',
     recursive: false,
     overwrite: true, // Allow overwriting existing files
     dryRun: false,
@@ -535,14 +535,14 @@ describe('copyToiCloud', () => {
 
     // Call the function
     const result = await copyToiCloud(mockSourcePath, {
-      targetApp: 'Documents',
+      app: 'Documents',
       recursive: true,
     });
 
     // Verify FileCopier.copy was called
     expect(copySpy).toHaveBeenCalledWith({
       source: mockSourcePath,
-      targetApp: 'Documents',
+      app: 'Documents',
       recursive: true,
     });
 

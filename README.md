@@ -93,7 +93,7 @@ console.log(`Copied to: ${copyResult.targetPath}`);
 
 // Copy files to a specific app's storage with options
 const advancedCopyResult = await copyToiCloud('./documents', {
-  targetApp: 'Pages',
+  app: 'Pages',
   pattern: '*.md',
   recursive: true,
   overwrite: true,
@@ -232,7 +232,7 @@ const result = await copyToiCloud('./localfile.txt');
 
 // Copy to specific app with options
 const result = await copyToiCloud('./documents', {
-  targetApp: 'Notes',
+  app: 'Notes',
   pattern: '*.md',
   recursive: true,
   overwrite: true,
@@ -240,7 +240,7 @@ const result = await copyToiCloud('./documents', {
 
 // Analyze without copying (dry run)
 const result = await copyToiCloud('./project', {
-  targetApp: 'Documents',
+  app: 'Documents',
   pattern: '*.{js,ts,json}',
   recursive: true,
   dryRun: true,
@@ -260,7 +260,7 @@ if (result.success) {
 
 // Copy with interactive confirmation (CLI-like experience)
 const interactiveResult = await copyToiCloud('./important-data', {
-  targetApp: 'Documents',
+  app: 'Documents',
   interactive: true,
   detailed: true,
 });
@@ -279,13 +279,13 @@ const copier = new FileCopier();
 // Basic copying
 const result = await copier.copy({
   source: './localfile.txt',
-  targetApp: 'Notes',
+  app: 'Notes',
 });
 
 // Analyze files without copying
 const analysis = await copier.analyze({
   source: './documents',
-  targetApp: 'Pages',
+  app: 'Pages',
   pattern: '*.md',
   recursive: true,
 });
@@ -293,14 +293,12 @@ const analysis = await copier.analyze({
 // Advanced copy options
 const advancedResult = await copier.copy({
   source: './project',
-  targetApp: 'Documents',
+  app: 'Documents',
   pattern: '*.{js,ts,json}',
   recursive: true,
   overwrite: true,
   dryRun: false,
-  detailed: true,
-  table: true,
-  skipConfirmation: false,
+  force: false,
   interactive: true,
 });
 ```
@@ -310,14 +308,14 @@ const advancedResult = await copier.copy({
 ```typescript
 interface CopyOptions {
   source: string; // Source file or directory path
-  targetApp?: string; // Target application name
+  app?: string; // Target application name
   pattern?: string; // File matching pattern (e.g., "*.txt")
   recursive?: boolean; // Whether to copy directories recursively
   overwrite?: boolean; // Whether to overwrite existing files
   dryRun?: boolean; // Analyze only without actual copying
   detailed?: boolean; // Display detailed information
   table?: boolean; // Display results in table format
-  skipConfirmation?: boolean; // Skip confirmation prompts
+  force?: boolean; // Skip confirmation prompts
   interactive?: boolean; // Interactive mode
 }
 ```

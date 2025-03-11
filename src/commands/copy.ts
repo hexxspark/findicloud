@@ -64,7 +64,7 @@ export default class CopyCommand extends BaseCommand {
       description: 'Source path to copy from',
       required: true,
     }),
-    targetApp: Args.string({
+    app: Args.string({
       description: 'Target app name to copy to',
       required: true,
     }),
@@ -77,14 +77,14 @@ export default class CopyCommand extends BaseCommand {
     try {
       const copyOptions: CopyOptions = {
         source: args.source,
-        targetApp: args.targetApp,
+        app: args.app,
         pattern: flags.pattern,
         recursive: flags.recursive || false,
         overwrite: flags.force || false,
         dryRun: flags['dry-run'] || false,
         detailed: flags.detailed || false,
         table: flags.table || false,
-        skipConfirmation: flags.yes || false,
+        force: flags.yes || false,
         interactive: flags.interactive || false,
       };
 
@@ -97,7 +97,7 @@ export default class CopyCommand extends BaseCommand {
       // First, analyze what files would be copied
       const analysis = await fileCopier.analyze({
         source: copyOptions.source,
-        targetApp: copyOptions.targetApp,
+        app: copyOptions.app,
         pattern: copyOptions.pattern,
         recursive: copyOptions.recursive,
       });
@@ -108,7 +108,7 @@ export default class CopyCommand extends BaseCommand {
       }
 
       // If interactive mode is enabled and not skipping confirmation
-      if (copyOptions.interactive && !copyOptions.skipConfirmation) {
+      if (copyOptions.interactive && !copyOptions.force) {
         const {confirm} = await import('@inquirer/prompts');
         const shouldProceed = await confirm({message: 'Do you want to proceed with the copy operation?'});
         if (!shouldProceed) {

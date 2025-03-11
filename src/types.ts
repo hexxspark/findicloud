@@ -67,20 +67,23 @@ export interface CommandOptions extends SearchOptions {
   recursive?: boolean;
   force?: boolean;
   dryRun?: boolean;
-  targetApp?: string;
+  app?: string;
   pattern?: string;
   overwrite?: boolean;
   detailed?: boolean;
   tableFormat?: boolean;
   interactive?: boolean;
-  skipConfirmation?: boolean;
 }
 
 export interface CopyOptions {
   source: string;
-  targetApp?: string;
+  app?: string;
   pattern?: string;
   recursive?: boolean;
   overwrite?: boolean;
   dryRun?: boolean;
+  detailed?: boolean;
+  table?: boolean;
+  force?: boolean;
+  interactive?: boolean;
 }
