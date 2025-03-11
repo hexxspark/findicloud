@@ -1,5 +1,4 @@
 import {findDrivePaths} from '../index';
-import {PathType} from '../types';
 
 describe('Index Exports', () => {
   it('should export findICloudDrivePaths function', () => {
@@ -35,7 +34,6 @@ describe('Index Exports', () => {
 
     try {
       const result = await findDrivePaths({
-        type: PathType.ROOT,
         includeInaccessible: false,
         minScore: 10,
         appName: 'test',

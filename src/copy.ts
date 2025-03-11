@@ -1,90 +1,106 @@
 import * as fs from 'fs';
-import { minimatch } from 'minimatch';
+import {minimatch} from 'minimatch';
 import * as path from 'path';
 
-import { findDrivePaths } from './locate';
-import { PathInfo, PathType, SearchOptions } from './types';
+import {findDrivePaths} from './locate';
+import {PathInfo, SearchOptions} from './types';
 
 export interface CopyOptions {
   source: string;
-  targetType: PathType;
   targetApp?: string;
   pattern?: string;
   recursive?: boolean;
   overwrite?: boolean;
   dryRun?: boolean;
-}
-
-export interface FileAnalysis {
-  files: Array<{
-    sourcePath: string;
-    targetPath: string;
-    size: number;
-  }>;
-  totalSize: number;
-  targetPath: string;
+  detailed?: boolean;
+  table?: boolean;
+  skipConfirmation?: boolean;
+  interactive?: boolean;
 }
 
 export interface CopyResult {
   success: boolean;
+  targetPath: string;
   copiedFiles: string[];
   failedFiles: string[];
-  targetPath: string;
   errors: Error[];
+}
+
+export interface FileAnalysis {
+  source: string;
+  targetPaths: PathInfo[];
+  filesToCopy: string[];
+  totalFiles: number;
+  totalSize: number;
 }
 
 export class FileCopier {
   async analyze(options: Omit<CopyOptions, 'dryRun' | 'overwrite'>): Promise<FileAnalysis> {
-    // 1. Find target paths
+    const sourcePath = path.resolve(options.source);
+    if (!fs.existsSync(sourcePath)) {
+      throw new Error(`Source path does not exist: ${sourcePath}`);
+    }
+
     const targetPaths = await this.findTargetPaths(options);
     if (targetPaths.length === 0) {
-      throw new Error('No valid target path found');
+      throw new Error('No valid target paths found');
     }
 
-    // 2. Select the best target path
-    const targetPath = this.selectBestTargetPath(targetPaths);
+    const filesToCopy = await this.findFilesToCopy(sourcePath, options);
+    if (filesToCopy.length === 0) {
+      throw new Error('No files to copy');
+    }
 
-    // 3. Get source files
-    const sourceFiles = await this.getSourceFiles(options);
+    const totalSize = await this.calculateTotalSize(filesToCopy);
 
-    // 4. Analyze files
-    const analysis: FileAnalysis = {
-      files: [],
-      totalSize: 0,
-      targetPath: targetPath.path,
+    return {
+      source: sourcePath,
+      targetPaths,
+      filesToCopy,
+      totalFiles: filesToCopy.length,
+      totalSize,
     };
-
-    for (const sourceFile of sourceFiles) {
-      const stats = await fs.promises.stat(sourceFile);
-      const relativePath = path.relative(options.source, sourceFile);
-      const targetFile = path.join(targetPath.path, relativePath);
-
-      analysis.files.push({
-        sourcePath: sourceFile,
-        targetPath: targetFile,
-        size: stats.size,
-      });
-
-      analysis.totalSize += stats.size;
-    }
-
-    return analysis;
   }
 
   async copy(options: CopyOptions): Promise<CopyResult> {
-    // 1. Find target paths
-    const targetPaths = await this.findTargetPaths(options);
+    const analysis = await this.analyze(options);
+    const result: CopyResult = {
+      success: true,
+      targetPath: analysis.targetPaths[0].path,
+      copiedFiles: [],
+      failedFiles: [],
+      errors: [],
+    };
 
-    // 2. Validate source paths
-    const sourceFiles = await this.getSourceFiles(options);
+    for (const targetPath of analysis.targetPaths) {
+      for (const sourceFile of analysis.filesToCopy) {
+        const relativePath = path.relative(
+          fs.statSync(analysis.source).isFile() ? path.dirname(analysis.source) : analysis.source,
+          sourceFile,
+        );
 
-    // 3. Execute copy operation
-    return this.executeCopy(sourceFiles, targetPaths, options);
+        const targetFile = path.join(targetPath.path, relativePath);
+
+        if (!options.dryRun) {
+          try {
+            await this.copyFile(sourceFile, targetFile, options);
+            result.copiedFiles.push(sourceFile);
+          } catch (error: any) {
+            result.success = false;
+            result.failedFiles.push(sourceFile);
+            result.errors.push(error);
+          }
+        } else {
+          result.copiedFiles.push(sourceFile);
+        }
+      }
+    }
+
+    return result;
   }
 
   private async findTargetPaths(options: CopyOptions): Promise<PathInfo[]> {
     const searchOptions: SearchOptions = {
-      type: options.targetType,
       appName: options.targetApp,
       minScore: 10, // Ensure path reliability
     };
@@ -92,88 +108,82 @@ export class FileCopier {
     return findDrivePaths(searchOptions);
   }
 
-  private async getSourceFiles(options: CopyOptions): Promise<string[]> {
-    const source = options.source;
-    const pattern = options.pattern || '*';
+  private async findFilesToCopy(sourcePath: string, options: CopyOptions): Promise<string[]> {
+    const files: string[] = [];
+    const pattern = options.pattern || '**/*';
 
-    if (fs.statSync(source).isFile()) {
-      // If it's a file, check if it matches the pattern
-      return minimatch(path.basename(source), pattern) ? [source] : [];
+    if (!options.recursive && !fs.statSync(sourcePath).isFile()) {
+      throw new Error('Source must be a file when recursive is false');
     }
 
-    const files: string[] = [];
-    const entries = fs.readdirSync(source);
-
-    for (const entry of entries) {
-      const fullPath = path.join(source, entry);
-      const stats = fs.statSync(fullPath);
-
-      if (stats.isFile() && minimatch(entry, pattern)) {
-        files.push(fullPath);
-      } else if (stats.isDirectory() && options.recursive) {
-        // Recursively get files from subdirectory
-        const subFiles = await this.getSourceFiles({
-          ...options,
-          source: fullPath,
-        });
-        files.push(...subFiles);
-      }
+    if (fs.statSync(sourcePath).isFile()) {
+      files.push(sourcePath);
+    } else {
+      await this.walkDirectory(sourcePath, pattern, files);
     }
 
     return files;
   }
 
-  private async executeCopy(sourceFiles: string[], targetPaths: PathInfo[], options: CopyOptions): Promise<CopyResult> {
-    const result: CopyResult = {
-      success: true,
-      copiedFiles: [],
-      failedFiles: [],
-      targetPath: '',
-      errors: [],
-    };
+  private async walkDirectory(dir: string, pattern: string, files: string[]): Promise<void> {
+    const entries = await fs.promises.readdir(dir, {withFileTypes: true});
 
-    if (targetPaths.length === 0) {
-      result.success = false;
-      result.errors.push(new Error('No valid target path found'));
-      return result;
-    }
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
 
-    // Select the best target path
-    const targetPath = this.selectBestTargetPath(targetPaths);
-    result.targetPath = targetPath.path;
-
-    for (const sourceFile of sourceFiles) {
-      try {
-        // Always maintain directory structure by using relative path
-        const relativePath = path.relative(options.source, sourceFile);
-        const targetFile = path.join(targetPath.path, relativePath);
-
-        if (options.dryRun) {
-          result.copiedFiles.push(sourceFile);
-          continue;
-        }
-
-        // Create target directory if it doesn't exist
-        await fs.promises.mkdir(path.dirname(targetFile), { recursive: true });
-        await fs.promises.copyFile(sourceFile, targetFile);
-        result.copiedFiles.push(sourceFile);
-      } catch (error) {
-        result.failedFiles.push(sourceFile);
-        result.errors.push(error as Error);
+      if (entry.isDirectory()) {
+        await this.walkDirectory(fullPath, pattern, files);
+      } else if (entry.isFile() && minimatch(entry.name, pattern)) {
+        files.push(fullPath);
       }
     }
-
-    result.success = result.failedFiles.length === 0;
-    return result;
   }
 
-  private selectBestTargetPath(paths: PathInfo[]): PathInfo {
-    // Select the path with highest score and accessibility
-    return paths.reduce((best, current) => {
-      if (!best || (current.isAccessible && current.score > best.score)) {
-        return current;
+  private async copyFile(source: string, target: string, options: CopyOptions): Promise<void> {
+    try {
+      const targetDir = path.dirname(target);
+      await fs.promises.mkdir(targetDir, {recursive: true});
+
+      if (!options.overwrite && fs.existsSync(target)) {
+        throw new Error(`Target file already exists: ${target}`);
       }
-      return best;
-    });
+
+      // Use streams instead of fs.copyFile to avoid EPERM errors
+      return new Promise((resolve, reject) => {
+        const readStream = fs.createReadStream(source);
+        const writeStream = fs.createWriteStream(target);
+
+        readStream.on('error', err => {
+          reject(new Error(`Failed to read ${source}: ${err.message}`));
+        });
+
+        writeStream.on('error', err => {
+          reject(new Error(`Failed to write to ${target}: ${err.message}`));
+        });
+
+        writeStream.on('finish', () => {
+          resolve();
+        });
+
+        readStream.pipe(writeStream);
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to copy ${source} to ${target}: ${error.message}`);
+    }
+  }
+
+  private async calculateTotalSize(files: string[]): Promise<number> {
+    let totalSize = 0;
+
+    for (const file of files) {
+      try {
+        const stats = await fs.promises.stat(file);
+        totalSize += stats.size;
+      } catch {
+        // Skip files that can't be read
+      }
+    }
+
+    return totalSize;
   }
 }

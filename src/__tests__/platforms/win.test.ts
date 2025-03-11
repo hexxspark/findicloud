@@ -1,7 +1,7 @@
 import {vol} from 'memfs';
 
 import {WindowsPathFinder} from '../../platforms/win';
-import {PathType} from '../../types';
+import {PathInfo} from '../../types';
 
 const mockExecSync = jest.fn();
 
@@ -94,30 +94,31 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
   describe('Path Discovery', () => {
     it('should find root iCloud path', async () => {
       const paths = await finder.findPaths();
-      expect(paths.some(p => p.path === 'C:\\Users\\TestUser\\iCloudDrive' && p.type === PathType.ROOT)).toBeTruthy();
+      const rootPath = paths.find((p: PathInfo) => p.path === 'C:\\Users\\TestUser\\iCloudDrive');
+      expect(rootPath).toBeDefined();
     });
 
     it('should find all app storage paths with different formats', async () => {
       const paths = await finder.findPaths();
-      const appPaths = paths.filter(p => p.type === PathType.APP);
+      const appPaths = paths.filter((p: PathInfo) => p.metadata.appId);
 
       expect(appPaths.length).toBe(7);
-      expect(appPaths.some(p => p.metadata.appId?.includes('simonbs~Scriptable'))).toBeTruthy();
-      expect(appPaths.some(p => p.metadata.appId?.includes('workflow~my~workflows'))).toBeTruthy();
-      expect(appPaths.some(p => p.metadata.appId?.includes('pixelmatorteam~pixelmator'))).toBeTruthy();
-      expect(appPaths.some(p => p.metadata.appId?.includes('mindnode~MindNode'))).toBeTruthy();
-      expect(appPaths.some(p => p.metadata.appId?.includes('apple~numbers~Numbers'))).toBeTruthy();
-      expect(appPaths.some(p => p.metadata.appId?.includes('company~app~SubApp.Module'))).toBeTruthy();
-      expect(appPaths.some(p => p.metadata.appId?.includes('apple~pages~Pages'))).toBeTruthy();
+      expect(appPaths.some((p: PathInfo) => p.metadata.appId?.includes('simonbs~Scriptable'))).toBeTruthy();
+      expect(appPaths.some((p: PathInfo) => p.metadata.appId?.includes('workflow~my~workflows'))).toBeTruthy();
+      expect(appPaths.some((p: PathInfo) => p.metadata.appId?.includes('pixelmatorteam~pixelmator'))).toBeTruthy();
+      expect(appPaths.some((p: PathInfo) => p.metadata.appId?.includes('mindnode~MindNode'))).toBeTruthy();
+      expect(appPaths.some((p: PathInfo) => p.metadata.appId?.includes('apple~numbers~Numbers'))).toBeTruthy();
+      expect(appPaths.some((p: PathInfo) => p.metadata.appId?.includes('company~app~SubApp.Module'))).toBeTruthy();
+      expect(appPaths.some((p: PathInfo) => p.metadata.appId?.includes('apple~pages~Pages'))).toBeTruthy();
     });
 
     it('should correctly identify app paths starting with ID', async () => {
       const paths = await finder.findPaths();
-      const pixelmatorApp = paths.find(p => p.metadata.appId?.includes('pixelmator'));
-      const mindnodeApp = paths.find(p => p.metadata.appId?.includes('mindnode'));
+      const pixelmatorApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('pixelmator'));
+      const mindnodeApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('mindnode'));
 
-      expect(pixelmatorApp?.type).toBe(PathType.APP);
-      expect(mindnodeApp?.type).toBe(PathType.APP);
+      expect(pixelmatorApp).toBeDefined();
+      expect(mindnodeApp).toBeDefined();
 
       expect(pixelmatorApp?.metadata.bundleId).toBe('com.pixelmatorteam.pixelmator');
       expect(mindnodeApp?.metadata.bundleId).toBe('com.mindnode.MindNode');
@@ -125,10 +126,9 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
 
     it('should handle complex app names with dots and multiple segments', async () => {
       const paths = await finder.findPaths();
-      const complexApp = paths.find(p => p.metadata.appId?.includes('SubApp.Module'));
+      const complexApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('SubApp.Module'));
 
       expect(complexApp).toBeDefined();
-      expect(complexApp?.type).toBe(PathType.APP);
       expect(complexApp?.metadata.bundleId).toBe('com.company.app.SubApp.Module');
       expect(complexApp?.metadata.appName).toBe('SubApp Module');
     });
@@ -155,8 +155,8 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
   describe('Path Metadata', () => {
     it('should correctly parse iCloud~ format app metadata', async () => {
       const paths = await finder.findPaths();
-      const scriptableApp = paths.find(p => p.metadata.appId?.includes('Scriptable'));
-      const numbersApp = paths.find(p => p.metadata.appId?.includes('Numbers'));
+      const scriptableApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('Scriptable'));
+      const numbersApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('Numbers'));
 
       expect(scriptableApp).toBeDefined();
       expect(scriptableApp?.metadata.bundleId).toBe('dk.simonbs.Scriptable');
@@ -169,8 +169,8 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
 
     it('should correctly parse ID~ format app metadata', async () => {
       const paths = await finder.findPaths();
-      const mindnodeApp = paths.find(p => p.metadata.appId?.includes('mindnode'));
-      const pixelmatorApp = paths.find(p => p.metadata.appId?.includes('pixelmator'));
+      const mindnodeApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('mindnode'));
+      const pixelmatorApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('pixelmator'));
 
       expect(mindnodeApp).toBeDefined();
       expect(mindnodeApp?.metadata.bundleId).toBe('com.mindnode.MindNode');
@@ -208,37 +208,5 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
     //   expect(Array.isArray(paths)).toBeTruthy();
     //   expect(paths.every(p => p.metadata.bundleId !== undefined)).toBeTruthy();
     // });
-  });
-
-  describe('_classifyPath', () => {
-    it('should classify app paths', () => {
-      const finder = new WindowsPathFinder();
-      const path = 'C:\\Users\\Test\\iCloudDrive\\com~apple~TestApp';
-      expect(finder['_classifyPath'](path)).toBe(PathType.APP);
-    });
-
-    it('should classify photos paths', () => {
-      const finder = new WindowsPathFinder();
-      const path = 'C:\\Users\\Test\\iCloudDrive\\Photos';
-      expect(finder['_classifyPath'](path)).toBe(PathType.PHOTOS);
-    });
-
-    it('should classify document paths', () => {
-      const finder = new WindowsPathFinder();
-      const path = 'C:\\Users\\Test\\iCloudDrive\\Documents';
-      expect(finder['_classifyPath'](path)).toBe(PathType.DOCS);
-    });
-
-    it('should classify root paths', () => {
-      const finder = new WindowsPathFinder();
-      const path = 'C:\\Users\\Test\\iCloudDrive';
-      expect(finder['_classifyPath'](path)).toBe(PathType.ROOT);
-    });
-
-    it('should classify other paths', () => {
-      const finder = new WindowsPathFinder();
-      const path = 'C:\\Users\\Test\\iCloudDrive\\Other';
-      expect(finder['_classifyPath'](path)).toBe(PathType.OTHER);
-    });
   });
 });

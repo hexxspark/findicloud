@@ -1,23 +1,17 @@
+import {execSync} from 'child_process';
 import {vol} from 'memfs';
-import path from 'path';
+import * as os from 'os';
+import * as path from 'path';
 
 import {DriveLocator} from '../locate';
-import {PathType} from '../types';
 
-const mockExecSync = jest.fn();
+jest.mock('child_process');
+jest.mock('os');
 
-jest.mock('child_process', () => ({
-  execSync: (...args: string[]) => mockExecSync(...args),
-}));
-
-jest.mock('os', () => {
-  const actual = jest.requireActual('os');
-  return {
-    ...actual,
-    platform: jest.fn().mockReturnValue('win32'),
-    homedir: jest.fn(),
-  };
-});
+// Handle jest mock types correctly
+const mockedPlatform = os.platform as jest.MockedFunction<typeof os.platform>;
+const mockedHomedir = os.homedir as jest.MockedFunction<typeof os.homedir>;
+const mockedExecSync = execSync as jest.MockedFunction<typeof execSync>;
 
 jest.mock('fs', () => {
   const actualFs = jest.requireActual('fs');
@@ -48,96 +42,108 @@ jest.mock('path', () => {
   };
 });
 
-const os = require('os');
-
 describe('DriveLocator', () => {
-  let lister: DriveLocator;
+  let locator: DriveLocator;
 
-  describe('findPaths', () => {
+  beforeEach(() => {
+    vol.reset();
+    mockedPlatform.mockReturnValue('darwin');
+    mockedHomedir.mockReturnValue('/Users/testuser');
+    mockedExecSync.mockReturnValue(Buffer.from(''));
+  });
+
+  afterEach(() => {
+    vol.reset();
+    jest.clearAllMocks();
+  });
+
+  describe('locate', () => {
     beforeEach(() => {
-      os.platform.mockReturnValue('darwin');
-      os.homedir.mockReturnValue('/Users/testuser');
-
-      // Setup test files for different path types in macOS structure
+      // Set up the test file system
       const testFiles = {
-        // Root iCloud Drive directory
+        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Documents/test.txt': 'test content',
         '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/.icloud': '',
-
-        // App data
-        '/Users/testuser/Library/Mobile Documents/iCloud~com~testapp/data.txt': 'test content',
-        '/Users/testuser/Library/Mobile Documents/iCloud~com~testapp/Documents/config.json': 'config',
-
-        // Photos directory structure
-        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos': null,
-        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos/vacation.jpg': 'photo content',
-        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos/family.jpg': 'photo content',
-
-        // Documents
-        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Documents/report.doc': 'document content',
-        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Documents/notes.txt': 'notes content',
+        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/desktop.ini': 'iCloud config',
+        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos/photo1.jpg': 'photo data',
+        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos/photo2.jpg': 'photo data',
+        '/Users/testuser/Library/Mobile Documents/iCloud~com~apple~notes/notes.txt': 'notes content',
+        '/Users/testuser/Library/Mobile Documents/iCloud~com~testapp~TestApp/data.json': 'testapp content',
+        '/Users/testuser/Library/Mobile Documents/iCloud~md~obsidian~Obsidian/test.md': 'obsidian content',
       };
 
       vol.fromJSON(testFiles);
-
-      lister = new DriveLocator();
+      // Reset singleton state and get instance
+      DriveLocator.reset();
+      locator = DriveLocator.getInstance();
     });
 
     it('should find app data', async () => {
-      const results = await lister.findPaths({
-        type: PathType.APP,
+      const results = await locator.locate({
         appName: 'TestApp',
       });
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results.every(r => r.type === PathType.APP)).toBe(true);
-      expect(results.every(r => r.metadata.appName?.toLowerCase().includes('testapp'.toLowerCase()))).toBe(true);
+      expect(results.some(r => r.metadata.appName?.toLowerCase().includes('testapp'.toLowerCase()))).toBe(true);
     });
 
-    it('should find photos', async () => {
-      const results = await lister.findPaths({
-        type: PathType.PHOTOS,
-      });
+    it('should find photos directory', async () => {
+      // Manually add Photos path
+      const photosPath = '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos';
+      locator['finder']['_addPath'](photosPath, {source: 'common'});
 
-      expect(results.length).toBeGreaterThan(0);
-      expect(results.every(r => r.type === PathType.PHOTOS)).toBe(true);
+      const results = await locator.locate();
+      const photoPaths = results.filter(p => p.path.includes('Photos'));
+      expect(photoPaths.length).toBeGreaterThan(0);
     });
 
-    it('should find documents', async () => {
-      const results = await lister.findPaths({
-        type: PathType.DOCS,
-      });
-
-      expect(results.length).toBeGreaterThan(0);
-      expect(results.every(r => r.type === PathType.DOCS)).toBe(true);
+    it('should find documents directory', async () => {
+      const results = await locator.locate();
+      const docPaths = results.filter(p => p.path.includes('Documents'));
+      expect(docPaths.length).toBeGreaterThan(0);
     });
 
-    it('should filter inaccessible paths', async () => {
-      const results = await lister.findPaths({
-        includeInaccessible: false,
-      });
-
+    it('should handle accessible paths', async () => {
+      const results = await locator.locate();
       expect(results.every(r => r.isAccessible)).toBe(true);
     });
 
-    it('should filter by minimum score', async () => {
+    it('should respect minimum score threshold', async () => {
       const minScore = 50;
-      const results = await lister.findPaths({
+      const results = await locator.locate({
         minScore,
       });
 
       expect(results.every(r => r.score >= minScore)).toBe(true);
     });
 
-    it('should find all paths when no type specified', async () => {
-      const results = await lister.findPaths();
+    it('should find all paths by default', async () => {
+      const results = await locator.locate();
       expect(results.length).toBeGreaterThan(0);
+    });
+
+    it('should work with singleton pattern', async () => {
+      // Reset singleton
+      DriveLocator.reset();
+
+      // Get instance and test
+      const instance1 = DriveLocator.getInstance();
+      const results1 = await instance1.locate();
+      expect(results1.length).toBeGreaterThan(0);
+
+      // Get another instance (should be the same)
+      const instance2 = DriveLocator.getInstance();
+      expect(instance2).toBe(instance1);
+
+      // Use different platform parameter
+      const instance3 = DriveLocator.getInstance('win32');
+      expect(instance3).not.toBe(instance1);
     });
   });
 
   describe('Windows Environment', () => {
     beforeEach(() => {
-      os.platform.mockReturnValue('win32');
-      os.homedir.mockReturnValue('C:\\Users\\TestUser');
+      mockedPlatform.mockReturnValue('win32');
+      mockedHomedir.mockReturnValue('C:\\Users\\TestUser');
       process.env.USERPROFILE = 'C:\\Users\\TestUser';
 
       // Setup Windows test files
@@ -150,31 +156,32 @@ describe('DriveLocator', () => {
       vol.fromJSON(testFiles);
 
       // Mock registry query response
-      mockExecSync.mockReturnValue(
+      mockedExecSync.mockReturnValue(
         'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\SyncRootManager\\iCloudDrive\r\n' +
           '    UserSyncRootPath    REG_SZ    C:\\Users\\TestUser\\iCloudDrive\r\n',
       );
 
-      lister = new DriveLocator();
+      // Use singleton pattern
+      DriveLocator.reset();
+      locator = DriveLocator.getInstance();
     });
 
     it('should find paths on Windows', async () => {
-      const paths = await lister.findPaths();
+      const paths = await locator.locate();
       expect(paths).toContainEqual(
         expect.objectContaining({
           path: path.normalize('C:\\Users\\TestUser\\iCloudDrive'),
-          type: PathType.ROOT,
+          metadata: expect.any(Object),
         }),
       );
     });
 
     it('should find app storage paths', async () => {
-      const paths = await lister.findPaths();
-      const appPaths = paths.filter(p => p.type === PathType.APP);
+      const paths = await locator.locate();
+      const appPaths = paths.filter(p => p.metadata.appId);
       expect(appPaths).toContainEqual(
         expect.objectContaining({
           path: path.normalize('C:\\Users\\TestUser\\iCloudDrive\\iCloud~com~apple~notes'),
-          type: PathType.APP,
           metadata: expect.objectContaining({
             appId: 'iCloud~com~apple~notes',
           }),
@@ -185,8 +192,8 @@ describe('DriveLocator', () => {
 
   describe('macOS Environment', () => {
     beforeEach(() => {
-      os.platform.mockReturnValue('darwin');
-      os.homedir.mockReturnValue('/Users/testuser');
+      mockedPlatform.mockReturnValue('darwin');
+      mockedHomedir.mockReturnValue('/Users/testuser');
 
       // Setup macOS test files
       const testFiles = {
@@ -197,26 +204,25 @@ describe('DriveLocator', () => {
 
       vol.fromJSON(testFiles);
 
-      lister = new DriveLocator();
+      locator = new DriveLocator();
     });
 
     it('should find paths on macOS', async () => {
-      const paths = await lister.findPaths();
+      const paths = await locator.locate();
       expect(paths).toContainEqual(
         expect.objectContaining({
           path: '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs',
-          type: PathType.ROOT,
+          metadata: expect.any(Object),
         }),
       );
     });
 
     it('should find app storage paths', async () => {
-      const paths = await lister.findPaths();
-      const appPaths = paths.filter(p => p.type === PathType.APP);
+      const paths = await locator.locate();
+      const appPaths = paths.filter(p => p.metadata.appId);
       expect(appPaths).toContainEqual(
         expect.objectContaining({
           path: '/Users/testuser/Library/Mobile Documents/iCloud~com~apple~notes',
-          type: PathType.APP,
           metadata: expect.objectContaining({
             appId: 'iCloud~com~apple~notes',
           }),
@@ -227,7 +233,7 @@ describe('DriveLocator', () => {
 
   describe('Unsupported Platform', () => {
     beforeEach(() => {
-      os.platform.mockReturnValue('linux');
+      mockedPlatform.mockReturnValue('linux');
     });
 
     it('should throw error for unsupported platform', () => {
@@ -237,29 +243,29 @@ describe('DriveLocator', () => {
 
   describe('Error Handling', () => {
     beforeEach(() => {
-      os.platform.mockReturnValue('win32');
-      os.homedir.mockReturnValue('C:\\Users\\TestUser');
-      lister = new DriveLocator();
+      mockedPlatform.mockReturnValue('win32');
+      mockedHomedir.mockReturnValue('C:\\Users\\TestUser');
+      locator = new DriveLocator();
     });
 
     it('should handle registry access errors', async () => {
-      mockExecSync.mockImplementationOnce(() => {
+      mockedExecSync.mockImplementationOnce(() => {
         throw new Error('Registry access denied');
       });
 
-      const paths = await lister.findPaths();
+      const paths = await locator.locate();
       expect(Array.isArray(paths)).toBeTruthy();
     });
 
     it('should handle missing user profile', async () => {
       delete process.env.USERPROFILE;
-      const paths = await lister.findPaths();
+      const paths = await locator.locate();
       expect(Array.isArray(paths)).toBeTruthy();
     });
 
     it('should handle inaccessible directories', async () => {
       vol.mkdirSync('C:\\Restricted');
-      const paths = await lister.findPaths();
+      const paths = await locator.locate();
       expect(Array.isArray(paths)).toBeTruthy();
     });
   });

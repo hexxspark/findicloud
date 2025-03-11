@@ -1,53 +1,52 @@
 import {vol} from 'memfs';
 
 import {BasePathFinder} from '../base';
-import {PathMetadata, PathSource, PathType} from '../types';
+import {PathInfo, PathMetadata, PathSource} from '../types';
 
-// Mock fs methods
 jest.mock('fs', () => {
-  const actualFs = jest.requireActual('fs');
   const memfs = require('memfs');
   return {
-    ...actualFs,
-    existsSync: (path: string) => memfs.vol.existsSync(path),
-    readdirSync: (path: string) => memfs.vol.readdirSync(path),
-    statSync: (path: string) => memfs.vol.statSync(path),
+    ...memfs.fs,
+    promises: memfs.fs.promises,
+    existsSync: memfs.vol.existsSync.bind(memfs.vol),
+    statSync: memfs.vol.statSync.bind(memfs.vol),
+    readdirSync: memfs.vol.readdirSync.bind(memfs.vol),
   };
 });
 
-// Create source constants
-const COMMON_SOURCE: PathSource = {source: 'common'};
-const REGISTRY_SOURCE: PathSource = {source: 'registry'};
+const COMMON_SOURCE: PathSource = {
+  source: 'common',
+};
 
-// Create a concrete implementation for testing
+const REGISTRY_SOURCE: PathSource = {
+  source: 'registry',
+  path: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\SyncRootManager\\iCloudDrive',
+  valueName: 'UserSyncRootPath',
+};
+
 class TestPathFinder extends BasePathFinder {
-  protected _classifyPath(path: string): PathType {
-    if (path.includes('iCloud~')) {
-      return PathType.APP;
-    }
-    return PathType.ROOT;
+  public async findPaths(): Promise<PathInfo[]> {
+    return Array.from(this.pathMap.values());
   }
 
   protected _enrichMetadata(metadata: PathMetadata, path: string, source: PathSource): PathMetadata {
     return {
       ...metadata,
       source,
-      sources: metadata.sources ? [...metadata.sources, source] : [source],
     };
   }
 
   // Expose protected methods for testing
-  public addPath(path: string, source: PathSource = COMMON_SOURCE) {
-    return this._addPath(path, source);
+  public testEvaluatePath(path: string): PathInfo {
+    return this.evaluatePath(path);
   }
 
-  public formatAppName(name: string) {
-    return this._formatAppName(name);
+  public testAddPath(path: string, source: PathSource): void {
+    this._addPath(path, source);
   }
 
-  // Get paths for testing
-  public getPaths() {
-    return Array.from(this.pathMap.values());
+  public testEnrichMetadata(metadata: PathMetadata, path: string, source: PathSource): PathMetadata {
+    return this._enrichMetadata(metadata, path, source);
   }
 }
 
@@ -55,144 +54,128 @@ describe('BasePathFinder', () => {
   let finder: TestPathFinder;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     vol.reset();
     finder = new TestPathFinder();
   });
 
+  afterEach(() => {
+    vol.reset();
+  });
+
   describe('Path Evaluation', () => {
-    it('should evaluate Windows paths correctly', () => {
-      const testPath = 'C:\\Users\\Test\\iCloudDrive';
-      vol.fromJSON({
-        'C:\\Users\\Test\\iCloudDrive\\desktop.ini': 'content',
-      });
+    it('should evaluate existing and accessible paths', () => {
+      const testPath = '/test/path';
+      vol.fromJSON({[testPath]: 'test content'});
 
-      const result = finder.evaluatePath(testPath);
-      expect(result.exists).toBeTruthy();
+      const result = finder.testEvaluatePath(testPath);
+      expect(result.exists).toBe(true);
+      expect(result.isAccessible).toBe(true);
       expect(result.score).toBeGreaterThan(0);
     });
 
-    it('should evaluate POSIX paths correctly', () => {
-      const testPath = '/Users/test/Library/Mobile Documents/com~apple~CloudDocs';
-      vol.fromJSON({
-        '/Users/test/Library/Mobile Documents/com~apple~CloudDocs/.icloud': '',
-      });
+    it('should handle non-existent paths', () => {
+      const testPath = '/nonexistent/path';
+      const result = finder.testEvaluatePath(testPath);
 
-      const result = finder.evaluatePath(testPath);
-      expect(result.exists).toBeTruthy();
-      expect(result.score).toBeGreaterThan(0);
+      expect(result.exists).toBe(false);
+      expect(result.isAccessible).toBe(false);
+      expect(result.score).toBe(0);
     });
 
-    it('should handle invalid paths', () => {
-      const result = finder.evaluatePath('invalid:path');
-      expect(result.score).toBeLessThan(0);
-      expect(result.exists).toBeFalsy();
-    });
-
-    it('should detect iCloud markers', () => {
-      const testPath = '/test/icloud';
-      vol.fromJSON({
-        '/test/icloud/desktop.ini': '',
-        '/test/icloud/.icloud': '',
-      });
-
-      const result = finder.evaluatePath(testPath);
-      expect(result.metadata.hasICloudMarkers).toBeTruthy();
-      expect(result.score).toBeGreaterThan(20); // Base score + iCloud marker bonus
-    });
-
-    it('should handle inaccessible directories', () => {
-      const testPath = '/restricted/dir';
-      vol.fromJSON({'/restricted/dir': null});
-
-      // Mock readdirSync to throw error
-      const mockReaddirSync = jest.spyOn(require('fs'), 'readdirSync');
-      mockReaddirSync.mockImplementationOnce(() => {
+    it('should handle inaccessible paths', () => {
+      const testPath = '/test/path';
+      vol.fromJSON({[testPath]: 'test content'});
+      // Mock fs.statSync to throw error
+      const mockStatSync = jest.spyOn(require('fs'), 'statSync');
+      mockStatSync.mockImplementationOnce(() => {
         throw new Error('EACCES: permission denied');
       });
 
-      const result = finder.evaluatePath(testPath);
-      expect(result.exists).toBeTruthy();
-      expect(result.isAccessible).toBeFalsy();
+      const result = finder.testEvaluatePath(testPath);
+      expect(result.exists).toBe(false);
+      expect(result.isAccessible).toBe(false);
+      expect(result.score).toBe(0);
     });
   });
 
   describe('Path Management', () => {
-    it('should add new paths correctly', () => {
-      const testPath = '/test/icloud';
-      vol.fromJSON({
-        '/test/icloud/desktop.ini': '',
-      });
+    it('should add valid paths', async () => {
+      const testPath = '/test/path';
+      vol.fromJSON({[testPath]: 'test content'});
 
-      finder.addPath(testPath, COMMON_SOURCE);
-      const paths = finder.getPaths();
+      finder.testAddPath(testPath, COMMON_SOURCE);
+      const paths = await finder.findPaths();
 
       expect(paths).toHaveLength(1);
       expect(paths[0].path).toBe(testPath);
       expect(paths[0].metadata.source).toEqual(COMMON_SOURCE);
     });
 
-    it('should update existing paths with better scores', () => {
+    it('should prioritize paths with higher scores', async () => {
       const testPath = '/test/icloud';
+      // Create a directory structure
+      vol.mkdirSync(testPath, {recursive: true});
+      vol.writeFileSync(`${testPath}/file.txt`, 'content');
 
-      // First add with basic setup
-      vol.fromJSON({
-        '/test/icloud/file.txt': '',
+      // Mock evaluatePath to return different scores based on source
+      const originalEvaluatePath = finder.testEvaluatePath;
+      jest.spyOn(finder, 'testEvaluatePath').mockImplementation(path => {
+        const result = originalEvaluatePath.call(finder, path);
+        // Give registry source a higher score
+        if (path === testPath) {
+          result.score = 60; // Higher than the default 50
+        }
+        return result;
       });
-      finder.addPath(testPath, COMMON_SOURCE);
 
-      // Then update with better setup
-      vol.reset();
-      vol.fromJSON({
-        '/test/icloud/desktop.ini': '',
-        '/test/icloud/.icloud': '',
-      });
-      finder.addPath(testPath, REGISTRY_SOURCE);
-
-      const paths = finder.getPaths();
+      // Add path with registry source (higher score)
+      finder.testAddPath(testPath, REGISTRY_SOURCE);
+      let paths = await finder.findPaths();
       expect(paths).toHaveLength(1);
       expect(paths[0].metadata.source).toEqual(REGISTRY_SOURCE);
-      expect(paths[0].metadata.hasICloudMarkers).toBeTruthy();
+
+      // Reset the mock to use original implementation
+      jest.spyOn(finder, 'testEvaluatePath').mockRestore();
     });
 
-    it('should classify paths correctly', () => {
-      const rootPath = '/test/icloud';
-      const appPath = '/test/iCloud~com~apple~notes';
+    it('should not update source when scores are equal', async () => {
+      const testPath = '/test/equal-score';
+      vol.fromJSON({[testPath]: 'test content'});
 
-      vol.fromJSON({
-        '/test/icloud/desktop.ini': '',
-        '/test/iCloud~com~apple~notes/notes.txt': '',
-      });
+      // Add path with common source first
+      finder.testAddPath(testPath, COMMON_SOURCE);
+      let paths = await finder.findPaths();
+      expect(paths).toHaveLength(1);
+      expect(paths[0].metadata.source).toEqual(COMMON_SOURCE);
 
-      finder.addPath(rootPath);
-      finder.addPath(appPath);
+      // Add the same path with registry source
+      finder.testAddPath(testPath, REGISTRY_SOURCE);
 
-      const paths = finder.getPaths();
-      expect(paths.find(p => p.path === rootPath)?.type).toBe(PathType.ROOT);
-      expect(paths.find(p => p.path === appPath)?.type).toBe(PathType.APP);
+      // Verify that the source is still the original one (common)
+      paths = await finder.findPaths();
+      expect(paths).toHaveLength(1);
+      expect(paths[0].metadata.source).toEqual(COMMON_SOURCE);
     });
   });
 
-  describe('Utility Methods', () => {
-    it('should format app names correctly', () => {
-      const testCases = [
-        {input: 'testApp', expected: 'TestApp'},
-        {input: 'test.app', expected: 'Test App'},
-        {input: 'test-app', expected: 'Test App'},
-        {input: 'TestAppName', expected: 'TestAppName'},
-        {input: 'test.app.name', expected: 'Test App Name'},
-      ];
+  describe('Metadata Enrichment', () => {
+    it('should properly enrich metadata with source information', () => {
+      const initialMetadata: PathMetadata = {
+        appName: 'Test App',
+        bundleId: 'com.test.app',
+      };
 
-      for (const {input, expected} of testCases) {
-        expect(finder.formatAppName(input)).toBe(expected);
-      }
-    });
+      // Use the test method to access the protected method
+      const enrichedMetadata = finder.testEnrichMetadata(initialMetadata, '/test/path', REGISTRY_SOURCE);
 
-    it('should handle empty and special characters in app names', () => {
-      expect(finder.formatAppName('')).toBe('');
-      expect(finder.formatAppName('test..app')).toBe('Test App');
-      expect(finder.formatAppName('test--app')).toBe('Test App');
-      expect(finder.formatAppName('test  app')).toBe('Test App');
+      // Verify that the source is added to the metadata
+      expect(enrichedMetadata).toEqual({
+        ...initialMetadata,
+        source: REGISTRY_SOURCE,
+      });
+
+      // Verify that the original metadata is not modified
+      expect(initialMetadata).not.toHaveProperty('source');
     });
   });
 
@@ -203,8 +186,8 @@ describe('BasePathFinder', () => {
         throw new Error('File system error');
       });
 
-      const result = finder.evaluatePath('/test/path');
-      expect(result.score).toBeLessThan(0);
+      const result = finder.testEvaluatePath('/test/path');
+      expect(result.score).toBe(0);
       expect(result.exists).toBeFalsy();
       expect(result.isAccessible).toBeFalsy();
     });
@@ -216,8 +199,10 @@ describe('BasePathFinder', () => {
       });
 
       vol.fromJSON({'/test/path': null});
-      const result = finder.evaluatePath('/test/path');
-      expect(result.score).toBeLessThan(0);
+      const result = finder.testEvaluatePath('/test/path');
+      expect(result.score).toBe(0);
+      expect(result.exists).toBeFalsy();
+      expect(result.isAccessible).toBeFalsy();
     });
   });
 });

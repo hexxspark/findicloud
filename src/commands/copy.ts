@@ -1,9 +1,10 @@
-import { Args, Flags } from '@oclif/core';
+import {Args, Flags} from '@oclif/core';
+import fs from 'fs';
+import path from 'path';
 
-import { FileCopier } from '../copy';
-import { PathType } from '../types';
-import { colors } from '../utils/colors';
-import { BaseCommand } from './base';
+import {CopyOptions, FileCopier} from '../copy';
+import {colors} from '../utils/colors';
+import {BaseCommand} from './base';
 
 export default class CopyCommand extends BaseCommand {
   static id = 'copy';
@@ -11,49 +12,50 @@ export default class CopyCommand extends BaseCommand {
   static aliases = ['cp'];
 
   static examples = [
-    '$ icloudy copy ./documents docs              # Copy local documents to iCloud Drive documents library',
-    '$ icloudy copy ./notes app Notes            # Copy local notes to Notes app iCloud storage',
-    '$ icloudy copy ./photos photos -r          # Recursively copy all files to iCloud photos library',
-    '$ icloudy copy ./data root -p "*.txt" -i   # Interactively copy txt files to iCloud root',
-    '$ icloudy copy ./backup docs -y            # Copy to documents library without confirmation',
+    '$ icloudy copy file.txt Word                # Copy file to Word app data',
+    '$ icloudy copy folder Word -r               # Copy folder recursively',
+    '$ icloudy copy *.txt Word -p "*.txt"        # Copy only .txt files',
+    '$ icloudy copy folder Word -r -f            # Force overwrite existing files',
+    '$ icloudy copy folder Word -r --dry-run     # Show what would be copied',
   ];
 
   static flags = {
     ...BaseCommand.flags,
-    pattern: Flags.string({
-      char: 'p',
-      description: 'File pattern to match (default: *)',
-    }),
     recursive: Flags.boolean({
       char: 'r',
       description: 'Copy directories recursively',
+      default: false,
+    }),
+    pattern: Flags.string({
+      char: 'p',
+      description: 'File pattern to match (e.g. "*.txt")',
     }),
     force: Flags.boolean({
       char: 'f',
-      description: 'Overwrite existing files',
+      description: 'Force overwrite existing files',
+      default: false,
     }),
     'dry-run': Flags.boolean({
-      char: 'd',
       description: 'Show what would be copied without actually copying',
+      default: false,
     }),
-    interactive: Flags.boolean({
-      char: 'i',
-      description: 'Enable interactive confirmation for copy operations',
-      exclusive: ['yes'],
+    detailed: Flags.boolean({
+      description: 'Display detailed file information',
+      default: false,
+    }),
+    table: Flags.boolean({
+      description: 'Display file information in table format',
+      default: false,
     }),
     yes: Flags.boolean({
       char: 'y',
-      description: 'Skip all confirmations',
-      exclusive: ['interactive'],
+      description: 'Skip confirmation prompt',
+      default: false,
     }),
-    detailed: Flags.boolean({
-      char: 'D',
-      description: 'Show detailed information for copy operations',
-    }),
-    table: Flags.boolean({
-      char: 't',
-      description: 'Show results in table format',
-      dependsOn: ['detailed'],
+    interactive: Flags.boolean({
+      char: 'i',
+      description: 'Interactive mode with confirmation prompts',
+      default: false,
     }),
   };
 
@@ -62,46 +64,29 @@ export default class CopyCommand extends BaseCommand {
       description: 'Source path to copy from',
       required: true,
     }),
-    type: Args.string({
-      description: 'Target path type (root|app|photos|docs)',
+    targetApp: Args.string({
+      description: 'Target app name to copy to',
       required: true,
-    }),
-    appName: Args.string({
-      description: 'App name (required for app type)',
-      required: false,
     }),
   };
 
   public async run(): Promise<void> {
-    const { args, flags } = await this.parse(CopyCommand);
+    const {args, flags} = await this.parse(CopyCommand);
     const options = this.getCommandOptions(flags);
 
     try {
-      // Set source path
-      options.source = args.source;
-
-      // Convert type argument to PathType
-      const type = args.type.toUpperCase();
-      if (type in PathType) {
-        options.targetType = PathType[type as keyof typeof PathType];
-      } else {
-        this.error('Invalid target type');
-      }
-
-      // Set app name if provided
-      if (args.appName) {
-        options.targetApp = args.appName;
-      }
-
-      // Set additional options
-      options.pattern = flags.pattern;
-      options.recursive = flags.recursive || false;
-      options.overwrite = flags.force || false;
-      options.dryRun = flags['dry-run'] || false;
-      options.interactive = flags.interactive || false;
-      options.skipConfirmation = flags.yes || false;
-      options.detailed = flags.detailed || false;
-      options.tableFormat = flags.table || false;
+      const copyOptions: CopyOptions = {
+        source: args.source,
+        targetApp: args.targetApp,
+        pattern: flags.pattern,
+        recursive: flags.recursive || false,
+        overwrite: flags.force || false,
+        dryRun: flags['dry-run'] || false,
+        detailed: flags.detailed || false,
+        table: flags.table || false,
+        skipConfirmation: flags.yes || false,
+        interactive: flags.interactive || false,
+      };
 
       if (!options.silent) {
         this.log(colors.info('Analyzing files to copy...'));
@@ -111,151 +96,101 @@ export default class CopyCommand extends BaseCommand {
 
       // First, analyze what files would be copied
       const analysis = await fileCopier.analyze({
-        source: options.source,
-        targetType: options.targetType,
-        targetApp: options.targetApp,
-        pattern: options.pattern,
-        recursive: options.recursive,
+        source: copyOptions.source,
+        targetApp: copyOptions.targetApp,
+        pattern: copyOptions.pattern,
+        recursive: copyOptions.recursive,
       });
 
-      // Show analysis and get confirmation if needed
-      if (!options.skipConfirmation) {
-        if (options.detailed) {
-          if (options.tableFormat) {
-            this.displayTableOutput(analysis.files);
-          } else {
-            this.displayDetailedOutput(analysis);
-          }
-        } else {
-          this.log(colors.info(`Found ${analysis.files.length} files to copy:`));
-          analysis.files.forEach((file, index) => {
-            this.log(colors.formatProgress(index + 1, analysis.files.length, file.sourcePath));
-          });
-        }
-
-        if (options.interactive && !options.dryRun) {
-          const confirmed = await this.confirm('Do you want to proceed with the copy operation?');
-          if (!confirmed) {
-            this.log(colors.warning('Copy operation cancelled.'));
-            return;
-          }
-        }
-      }
-
-      if (options.dryRun) {
-        if (!options.silent) {
-          this.log(colors.info('Dry run completed. No files were copied.'));
-        }
-        return;
-      }
-
-      // Proceed with copy
-      const result = await fileCopier.copy({
-        source: options.source,
-        targetType: options.targetType,
-        targetApp: options.targetApp,
-        pattern: options.pattern,
-        recursive: options.recursive,
-        overwrite: options.overwrite,
-      });
-
-      if (!result.success) {
-        this.error(`Copy operation failed: ${result.errors.map(e => e.message).join(', ')}`);
-      }
-
+      // Show analysis
       if (!options.silent) {
-        this.log(
-          colors.formatSuccess(`Successfully copied ${result.copiedFiles.length} files to: ${result.targetPath}`),
-        );
-        if (result.failedFiles.length > 0) {
-          this.warn(colors.formatWarning(`Failed to copy ${result.failedFiles.length} files`));
-          result.failedFiles.forEach(file => {
-            this.warn(colors.warning(`  - ${file}`));
-          });
+        this.displayAnalysis(analysis, copyOptions);
+      }
+
+      // If interactive mode is enabled and not skipping confirmation
+      if (copyOptions.interactive && !copyOptions.skipConfirmation) {
+        const {confirm} = await import('@inquirer/prompts');
+        const shouldProceed = await confirm({message: 'Do you want to proceed with the copy operation?'});
+        if (!shouldProceed) {
+          this.log(colors.info('Copy operation cancelled by user'));
+          return;
         }
       }
-    } catch (error) {
-      this.handleError(error, options.silent);
+
+      // If not a dry run, proceed with copy
+      if (!copyOptions.dryRun) {
+        if (!options.silent) {
+          this.log(colors.info('\nCopying files...'));
+        }
+
+        const result = await fileCopier.copy(copyOptions);
+
+        if (!options.silent) {
+          if (result.success) {
+            this.log(colors.success('\nFiles copied successfully!'));
+          } else {
+            this.log(colors.error('\nSome files failed to copy:'));
+            result.failedFiles.forEach(file => {
+              this.log(colors.error(`  ${file}`));
+            });
+            result.errors.forEach(error => {
+              this.log(colors.error(`  Error: ${error.message}`));
+            });
+            this.error('Copy operation failed');
+          }
+        }
+      }
+    } catch (error: any) {
+      this.error(error);
     }
   }
 
-  private async confirm(message: string): Promise<boolean> {
-    interface ConfirmResponse {
-      confirmed: boolean;
+  private displayAnalysis(analysis: any, options: CopyOptions): void {
+    this.log(colors.bold('\nCopy Analysis:'));
+    this.log(`Source: ${analysis.source}`);
+    this.log(`Target Paths: ${analysis.targetPaths.map((p: any) => p.path).join(', ')}`);
+    this.log(`Files to Copy: ${analysis.totalFiles}`);
+    this.log(`Total Size: ${this.formatSize(analysis.totalSize)}`);
+
+    if (options.dryRun || options.detailed) {
+      if (options.table) {
+        this.log(colors.dim('\nFiles to copy (table format):'));
+        this.log('Path                          Size       Last Modified');
+        this.log('------------------------------------------------------------');
+        analysis.filesToCopy.forEach((file: string) => {
+          try {
+            const stats = fs.statSync(file);
+            const size = this.formatSize(stats.size);
+            const lastModified = stats.mtime.toISOString().split('T')[0];
+            const relativePath = path.relative(analysis.source, file);
+            this.log(`${relativePath.padEnd(30)} ${size.padEnd(10)} ${lastModified}`);
+          } catch {
+            const relativePath = path.relative(analysis.source, file);
+            this.log(`${relativePath.padEnd(30)} Unknown    Unknown`);
+          }
+        });
+      } else {
+        this.log(colors.dim('\nFiles that would be copied:'));
+        analysis.filesToCopy.forEach((file: string) => {
+          const relativePath = path.relative(analysis.source, file);
+          if (options.detailed) {
+            try {
+              const stats = fs.statSync(file);
+              this.log(
+                `  ${relativePath} (${this.formatSize(stats.size)}, last modified: ${stats.mtime.toISOString()})`,
+              );
+            } catch {
+              this.log(`  ${relativePath} (size unknown)`);
+            }
+          } else {
+            this.log(`  ${relativePath}`);
+          }
+        });
+      }
     }
-    const response = await this.prompt<ConfirmResponse>({
-      type: 'confirm',
-      name: 'confirmed',
-      message,
-      default: false,
-    });
-    return response.confirmed;
   }
 
-  private displayTableOutput(files: Array<{ sourcePath: string; targetPath: string; size: number }>): void {
-    // Table format output using custom table formatter
-    this.log(colors.bold('\nFiles to be copied:'));
-
-    // Define column widths
-    const colWidths = [4, 45, 45, 15];
-    const totalWidth = colWidths.reduce((sum, width) => sum + width, 0) + colWidths.length + 1;
-
-    // Create separator line
-    const separator = colors.dim('─'.repeat(totalWidth));
-
-    // Create header row
-    const headerCells = [
-      colors.bold('#'),
-      colors.bold('Source'),
-      colors.bold('Target'),
-      colors.bold('Size'),
-    ];
-
-    // Print table header
-    this.log(separator);
-    this.log(this.formatTableRow(headerCells, colWidths));
-    this.log(separator);
-
-    // Create rows
-    files.forEach((file, index) => {
-      const row = this.formatTableRow([
-        colors.progress(String(index + 1)),
-        file.sourcePath,
-        file.targetPath,
-        this.formatFileSize(file.size),
-      ], colWidths);
-
-      this.log(row);
-    });
-
-    this.log(separator);
-  }
-
-  private displayDetailedOutput(analysis: { files: Array<{ sourcePath: string; targetPath: string; size: number }> }): void {
-    this.log(colors.bold('\nFiles to be copied:'));
-    analysis.files.forEach((file, index) => {
-      this.log(colors.bold(`\nFile #${index + 1}:`));
-      this.log(`  Source: ${file.sourcePath}`);
-      this.log(`  Target: ${file.targetPath}`);
-      this.log(`  Size: ${this.formatFileSize(file.size)}`);
-    });
-  }
-
-  private formatTableRow(cells: string[], colWidths: number[]): string {
-    let row = '│';
-    cells.forEach((cell, index) => {
-      const width = colWidths[index];
-      const padding = Math.max(0, width - this.stripAnsi(cell).length);
-      row += ` ${cell}${' '.repeat(padding)} │`;
-    });
-    return row;
-  }
-
-  private stripAnsi(str: string): string {
-    return str.replace(/\u001b\[\d+m/g, '');
-  }
-
-  private formatFileSize(bytes: number): string {
+  private formatSize(bytes: number): string {
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
     let size = bytes;
     let unitIndex = 0;
@@ -265,6 +200,6 @@ export default class CopyCommand extends BaseCommand {
       unitIndex++;
     }
 
-    return `${size.toFixed(1)} ${units[unitIndex]}`;
+    return `${size.toFixed(2)} ${units[unitIndex]}`;
   }
 }

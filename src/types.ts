@@ -1,4 +1,4 @@
-import { Stats } from 'fs';
+import {Stats} from 'fs';
 
 export interface RegistrySource {
   path: string;
@@ -18,14 +18,6 @@ export interface PathSource {
 }
 
 export type PathStats = Pick<Stats, 'mode' | 'uid' | 'gid' | 'size' | 'mtime'>;
-
-export enum PathType {
-  APP = 'app',
-  PHOTOS = 'photos',
-  DOCS = 'docs',
-  ROOT = 'root',
-  OTHER = 'other',
-}
 
 export interface PathMetadata {
   contents?: string[];
@@ -49,12 +41,10 @@ export interface PathInfo {
   score: number;
   exists: boolean;
   isAccessible: boolean;
-  type: PathType;
   metadata: PathMetadata;
 }
 
 export interface SearchOptions {
-  type?: PathType;
   appName?: string;
   includeInaccessible?: boolean;
   minScore?: number;
@@ -77,7 +67,6 @@ export interface CommandOptions extends SearchOptions {
   recursive?: boolean;
   force?: boolean;
   dryRun?: boolean;
-  targetType?: PathType;
   targetApp?: string;
   pattern?: string;
   overwrite?: boolean;
@@ -85,4 +74,13 @@ export interface CommandOptions extends SearchOptions {
   tableFormat?: boolean;
   interactive?: boolean;
   skipConfirmation?: boolean;
+}
+
+export interface CopyOptions {
+  source: string;
+  targetApp?: string;
+  pattern?: string;
+  recursive?: boolean;
+  overwrite?: boolean;
+  dryRun?: boolean;
 }

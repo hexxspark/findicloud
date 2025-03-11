@@ -1,7 +1,7 @@
-import { confirm } from '@inquirer/prompts';
-import { test } from '@oclif/test';
+import {confirm} from '@inquirer/prompts';
+import {test} from '@oclif/test';
 
-import { CopyResult, FileAnalysis, FileCopier } from '../../copy';
+import {CopyResult, FileAnalysis, FileCopier} from '../../copy';
 
 // Mock dependencies
 jest.mock('../../copy');
@@ -15,11 +15,7 @@ describe('copy command', () => {
     (confirm as jest.Mock).mockResolvedValue(true);
   });
 
-  test
-    .stdout()
-    .command(['copy', '--help'])
-    .exit(0)
-    .it('shows help information');
+  test.stdout().command(['copy', '--help']).exit(0).it('shows help information');
 
   test
     .do(() => {
@@ -27,13 +23,17 @@ describe('copy command', () => {
       const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
 
       mockAnalyze.mockResolvedValueOnce({
-        files: [{
-          sourcePath: 'file1.txt',
-          targetPath: '/icloud/docs/file1.txt',
-          size: 1024
-        }],
+        source: '/test/source',
+        targetPaths: [
+          {
+            path: '/icloud/docs',
+            isAccessible: true,
+            metadata: {},
+          },
+        ],
+        filesToCopy: ['/test/source/file1.txt'],
+        totalFiles: 1,
         totalSize: 1024,
-        targetPath: '/icloud/docs'
       } as FileAnalysis);
 
       mockCopy.mockResolvedValueOnce({
@@ -41,7 +41,7 @@ describe('copy command', () => {
         targetPath: '/icloud/docs',
         copiedFiles: ['file1.txt'],
         failedFiles: [],
-        errors: []
+        errors: [],
       } as CopyResult);
     })
     .stdout()
@@ -54,13 +54,17 @@ describe('copy command', () => {
       const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
 
       mockAnalyze.mockResolvedValueOnce({
-        files: [{
-          sourcePath: 'note1.txt',
-          targetPath: '/icloud/apps/Notes/note1.txt',
-          size: 1024
-        }],
-        totalSize: 1024,
-        targetPath: '/icloud/apps/Notes'
+        source: '/test/source',
+        targetPaths: [
+          {
+            path: '/icloud/apps/Notes',
+            isAccessible: true,
+            metadata: {},
+          },
+        ],
+        filesToCopy: ['/test/source/notes.txt'],
+        totalFiles: 1,
+        totalSize: 2048,
       } as FileAnalysis);
 
       mockCopy.mockResolvedValueOnce({
@@ -68,24 +72,28 @@ describe('copy command', () => {
         targetPath: '/icloud/apps/Notes',
         copiedFiles: ['note1.txt'],
         failedFiles: [],
-        errors: []
+        errors: [],
       } as CopyResult);
     })
     .stdout()
-    .command(['copy', './notes', 'app', 'Notes'])
+    .command(['copy', './notes', 'Notes'])
     .it('copies files to specific app');
 
   test
     .do(() => {
       const mockAnalyze = jest.spyOn(FileCopier.prototype, 'analyze');
       mockAnalyze.mockResolvedValueOnce({
-        files: [{
-          sourcePath: 'file1.txt',
-          targetPath: '/icloud/docs/file1.txt',
-          size: 1024
-        }],
+        source: '/test/source',
+        targetPaths: [
+          {
+            path: '/icloud/docs',
+            isAccessible: true,
+            metadata: {},
+          },
+        ],
+        filesToCopy: ['/test/source/file1.txt'],
+        totalFiles: 1,
         totalSize: 1024,
-        targetPath: '/icloud/docs'
       } as FileAnalysis);
     })
     .stdout()
@@ -98,20 +106,17 @@ describe('copy command', () => {
       const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
 
       mockAnalyze.mockResolvedValueOnce({
-        files: [
+        source: '/test/source',
+        targetPaths: [
           {
-            sourcePath: 'file1.txt',
-            targetPath: '/icloud/docs/file1.txt',
-            size: 1024
+            path: '/icloud/docs',
+            isAccessible: true,
+            metadata: {},
           },
-          {
-            sourcePath: 'subdir/file2.txt',
-            targetPath: '/icloud/docs/subdir/file2.txt',
-            size: 2048
-          }
         ],
-        totalSize: 3072,
-        targetPath: '/icloud/docs'
+        filesToCopy: ['/test/source/file1.txt', '/test/source/subdir/file2.txt'],
+        totalFiles: 2,
+        totalSize: 2048,
       } as FileAnalysis);
 
       mockCopy.mockResolvedValueOnce({
@@ -119,7 +124,7 @@ describe('copy command', () => {
         targetPath: '/icloud/docs',
         copiedFiles: ['file1.txt', 'subdir/file2.txt'],
         failedFiles: [],
-        errors: []
+        errors: [],
       } as CopyResult);
     })
     .stdout()
@@ -132,20 +137,17 @@ describe('copy command', () => {
       const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
 
       mockAnalyze.mockResolvedValueOnce({
-        files: [
+        source: '/test/source',
+        targetPaths: [
           {
-            sourcePath: 'file1.txt',
-            targetPath: '/icloud/docs/file1.txt',
-            size: 1024
+            path: '/icloud/docs',
+            isAccessible: true,
+            metadata: {},
           },
-          {
-            sourcePath: 'file2.txt',
-            targetPath: '/icloud/docs/file2.txt',
-            size: 2048
-          }
         ],
-        totalSize: 3072,
-        targetPath: '/icloud/docs'
+        filesToCopy: ['/test/source/file1.txt', '/test/source/file2.txt'],
+        totalFiles: 2,
+        totalSize: 2048,
       } as FileAnalysis);
 
       mockCopy.mockResolvedValueOnce({
@@ -153,7 +155,7 @@ describe('copy command', () => {
         targetPath: '/icloud/docs',
         copiedFiles: ['file1.txt', 'file2.txt'],
         failedFiles: [],
-        errors: []
+        errors: [],
       } as CopyResult);
     })
     .stdout()
@@ -166,13 +168,17 @@ describe('copy command', () => {
       const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
 
       mockAnalyze.mockResolvedValueOnce({
-        files: [{
-          sourcePath: 'file1.txt',
-          targetPath: '/icloud/docs/file1.txt',
-          size: 1024
-        }],
+        source: '/test/source',
+        targetPaths: [
+          {
+            path: '/icloud/docs',
+            isAccessible: true,
+            metadata: {},
+          },
+        ],
+        filesToCopy: ['/test/source/file1.txt'],
+        totalFiles: 1,
         totalSize: 1024,
-        targetPath: '/icloud/docs'
       } as FileAnalysis);
 
       mockCopy.mockResolvedValueOnce({
@@ -180,7 +186,7 @@ describe('copy command', () => {
         targetPath: '/icloud/docs',
         copiedFiles: [],
         failedFiles: ['file1.txt'],
-        errors: [new Error('Permission denied')]
+        errors: [new Error('Permission denied')],
       } as CopyResult);
     })
     .stdout()
@@ -195,13 +201,17 @@ describe('copy command', () => {
       const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
 
       mockAnalyze.mockResolvedValueOnce({
-        files: [{
-          sourcePath: 'file1.txt',
-          targetPath: '/icloud/docs/file1.txt',
-          size: 1024
-        }],
+        source: '/test/source',
+        targetPaths: [
+          {
+            path: '/icloud/docs',
+            isAccessible: true,
+            metadata: {},
+          },
+        ],
+        filesToCopy: ['/test/source/file1.txt'],
+        totalFiles: 1,
         totalSize: 1024,
-        targetPath: '/icloud/docs'
       } as FileAnalysis);
 
       mockCopy.mockResolvedValueOnce({
@@ -209,7 +219,7 @@ describe('copy command', () => {
         targetPath: '/icloud/docs',
         copiedFiles: ['file1.txt'],
         failedFiles: [],
-        errors: []
+        errors: [],
       } as CopyResult);
     })
     .stdout()
@@ -222,13 +232,17 @@ describe('copy command', () => {
       const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
 
       mockAnalyze.mockResolvedValueOnce({
-        files: [{
-          sourcePath: 'file1.txt',
-          targetPath: '/icloud/docs/file1.txt',
-          size: 1024
-        }],
+        source: '/test/source',
+        targetPaths: [
+          {
+            path: '/icloud/docs',
+            isAccessible: true,
+            metadata: {},
+          },
+        ],
+        filesToCopy: ['/test/source/file1.txt'],
+        totalFiles: 1,
         totalSize: 1024,
-        targetPath: '/icloud/docs'
       } as FileAnalysis);
 
       mockCopy.mockResolvedValueOnce({
@@ -236,7 +250,7 @@ describe('copy command', () => {
         targetPath: '/icloud/docs',
         copiedFiles: ['file1.txt'],
         failedFiles: [],
-        errors: []
+        errors: [],
       } as CopyResult);
     })
     .stdout()
@@ -249,13 +263,17 @@ describe('copy command', () => {
       const mockCopy = jest.spyOn(FileCopier.prototype, 'copy');
 
       mockAnalyze.mockResolvedValueOnce({
-        files: [{
-          sourcePath: 'file1.txt',
-          targetPath: '/icloud/docs/file1.txt',
-          size: 1024
-        }],
+        source: '/test/source',
+        targetPaths: [
+          {
+            path: '/icloud/docs',
+            isAccessible: true,
+            metadata: {},
+          },
+        ],
+        filesToCopy: ['/test/source/file1.txt'],
+        totalFiles: 1,
         totalSize: 1024,
-        targetPath: '/icloud/docs'
       } as FileAnalysis);
 
       mockCopy.mockResolvedValueOnce({
@@ -263,7 +281,7 @@ describe('copy command', () => {
         targetPath: '/icloud/docs',
         copiedFiles: ['file1.txt'],
         failedFiles: [],
-        errors: []
+        errors: [],
       } as CopyResult);
     })
     .stdout()
@@ -276,13 +294,17 @@ describe('copy command', () => {
       (confirm as jest.Mock).mockResolvedValueOnce(false);
 
       mockAnalyze.mockResolvedValueOnce({
-        files: [{
-          sourcePath: 'file1.txt',
-          targetPath: '/icloud/docs/file1.txt',
-          size: 1024
-        }],
+        source: '/test/source',
+        targetPaths: [
+          {
+            path: '/icloud/docs',
+            isAccessible: true,
+            metadata: {},
+          },
+        ],
+        filesToCopy: ['/test/source/file1.txt'],
+        totalFiles: 1,
         totalSize: 1024,
-        targetPath: '/icloud/docs'
       } as FileAnalysis);
     })
     .stdout()

@@ -2,14 +2,39 @@ import os from 'os';
 
 import {MacPathFinder} from './platforms/mac';
 import {WindowsPathFinder} from './platforms/win';
-import {PathInfo, PathType, SearchOptions} from './types';
+import {PathInfo, SearchOptions} from './types';
 
 export class DriveLocator {
   private finder: MacPathFinder | WindowsPathFinder;
-  private currentPlatform: string;
+  private currentPlatform: NodeJS.Platform;
 
-  constructor() {
-    this.currentPlatform = os.platform();
+  // Singleton implementation
+  private static instance: DriveLocator | null = null;
+  private static platformOverride: NodeJS.Platform | undefined;
+
+  // Obtain a singleton instance
+  public static getInstance(platformOverride?: NodeJS.Platform): DriveLocator {
+    // If a new platform override is provided and is different from the current one, reset the instance
+    if (platformOverride !== undefined && platformOverride !== this.platformOverride) {
+      this.reset();
+      this.platformOverride = platformOverride;
+    }
+
+    if (!this.instance) {
+      this.instance = new DriveLocator(this.platformOverride);
+    }
+
+    return this.instance;
+  }
+
+  // Reset singleton (mostly used for testing)
+  public static reset(): void {
+    this.instance = null;
+    this.platformOverride = undefined;
+  }
+
+  constructor(platformOverride?: NodeJS.Platform) {
+    this.currentPlatform = platformOverride || os.platform();
 
     if (this.currentPlatform === 'darwin') {
       this.finder = new MacPathFinder();
@@ -20,16 +45,9 @@ export class DriveLocator {
     }
   }
 
-  async findPaths(options?: SearchOptions): Promise<PathInfo[]> {
-    const defaultOptions: SearchOptions = {
-      includeInaccessible: false,
-      minScore: 0,
-    };
-
-    const finalOptions = {...defaultOptions, ...options};
+  async locate(options: SearchOptions = {}): Promise<PathInfo[]> {
     const paths = await this.finder.findPaths();
-
-    return this._filterPaths(paths, finalOptions);
+    return this._filterPaths(paths, options);
   }
 
   private _filterPaths(paths: PathInfo[], options: SearchOptions): PathInfo[] {
@@ -42,14 +60,10 @@ export class DriveLocator {
         return false;
       }
 
-      if (options.type && path.type !== options.type) {
-        return false;
-      }
-
       return true;
     });
 
-    if (options.type === PathType.APP && options.appName) {
+    if (options.appName) {
       filtered = this._findMatchingApps(options.appName, filtered);
     }
 
@@ -87,11 +101,15 @@ export class DriveLocator {
   }
 }
 
-export const iCloudDriveLocator = new DriveLocator();
+// Update the factory function
+export function createDriveLocator(platformOverride?: NodeJS.Platform): DriveLocator {
+  return DriveLocator.getInstance(platformOverride);
+}
 
-export async function findDrivePaths(options?: SearchOptions): Promise<PathInfo[]> {
-  if (process.platform !== 'darwin' && process.platform !== 'win32') {
+export async function findDrivePaths(options?: SearchOptions, platformOverride?: NodeJS.Platform): Promise<PathInfo[]> {
+  if (process.platform !== 'darwin' && process.platform !== 'win32' && !platformOverride) {
     throw new Error('Unsupported platform: ' + process.platform);
   }
-  return await iCloudDriveLocator.findPaths(options);
+  const locator = createDriveLocator(platformOverride);
+  return await locator.locate(options);
 }

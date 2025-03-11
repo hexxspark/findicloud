@@ -1,6 +1,6 @@
-import { test } from '@oclif/test';
-import { findDrivePaths } from '../../locate';
-import { PathType } from '../../types';
+import {test} from '@oclif/test';
+
+import {findDrivePaths} from '../../locate';
 
 jest.mock('../../locate');
 
@@ -9,11 +9,7 @@ describe('locate command', () => {
     jest.resetAllMocks();
   });
 
-  test
-    .stdout()
-    .command(['locate', '--help'])
-    .exit(0)
-    .it('shows help information');
+  test.stdout().command(['locate', '--help']).exit(0).it('shows help information');
 
   test
     .do(() => {
@@ -21,12 +17,11 @@ describe('locate command', () => {
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',
-          type: PathType.DOCS,
           score: 100,
           isAccessible: true,
           exists: true,
-          metadata: {}
-        }
+          metadata: {},
+        },
       ]);
     })
     .stdout()
@@ -39,15 +34,14 @@ describe('locate command', () => {
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',
-          type: PathType.APP,
           score: 100,
           isAccessible: true,
           exists: true,
           metadata: {
             appName: 'TestApp',
-            bundleId: 'com.test.app'
-          }
-        }
+            bundleId: 'com.test.app',
+          },
+        },
       ]);
     })
     .stdout()
@@ -60,23 +54,21 @@ describe('locate command', () => {
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',
-          type: PathType.APP,
           score: 100,
           isAccessible: true,
           exists: true,
           metadata: {
             appName: 'TestApp',
-            bundleId: 'com.test.app'
-          }
+            bundleId: 'com.test.app',
+          },
         },
         {
           path: '/test/path2',
-          type: PathType.DOCS,
           score: 90,
           isAccessible: false,
           exists: true,
-          metadata: {}
-        }
+          metadata: {},
+        },
       ]);
     })
     .stdout()
@@ -89,15 +81,14 @@ describe('locate command', () => {
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',
-          type: PathType.APP,
           score: 100,
           isAccessible: true,
           exists: true,
           metadata: {
             appName: 'TestApp',
-            bundleId: 'com.test.app'
-          }
-        }
+            bundleId: 'com.test.app',
+          },
+        },
       ]);
     })
     .stdout()
@@ -110,20 +101,19 @@ describe('locate command', () => {
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',
-          type: PathType.APP,
           score: 100,
           isAccessible: true,
           exists: true,
           metadata: {
             appName: 'TestApp',
-            bundleId: 'com.test.app'
-          }
-        }
+            bundleId: 'com.test.app',
+          },
+        },
       ]);
     })
     .stdout()
-    .command(['locate', 'app', 'TestApp'])
-    .it('filters paths by type and app name');
+    .command(['locate', 'TestApp'])
+    .it('filters paths by app name');
 
   test
     .do(() => {
@@ -131,12 +121,11 @@ describe('locate command', () => {
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',
-          type: PathType.DOCS,
           score: 100,
           isAccessible: true,
           exists: true,
-          metadata: {}
-        }
+          metadata: {},
+        },
       ]);
     })
     .stdout()
@@ -149,12 +138,11 @@ describe('locate command', () => {
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',
-          type: PathType.DOCS,
           score: 100,
           isAccessible: false,
           exists: true,
-          metadata: {}
-        }
+          metadata: {},
+        },
       ]);
     })
     .stdout()
@@ -177,7 +165,7 @@ describe('locate command', () => {
     })
     .stdout()
     .command(['locate'])
-    .exit(1)
+    .exit(2)
     .it('handles errors');
 
   test
@@ -186,15 +174,14 @@ describe('locate command', () => {
       mockFindDrivePaths.mockResolvedValueOnce([
         {
           path: '/test/path1',
-          type: PathType.APP,
           score: 100,
           isAccessible: true,
           exists: true,
           metadata: {
             appName: 'VeryLongAppName'.repeat(10),
-            bundleId: 'com.test.verylongbundleid'.repeat(10)
-          }
-        }
+            bundleId: 'com.test.verylongbundleid'.repeat(10),
+          },
+        },
       ]);
     })
     .stdout()

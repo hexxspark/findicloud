@@ -1,9 +1,11 @@
 import {execSync} from 'child_process';
 import * as fs from 'fs';
-import {basename, join} from 'path';
+import {join} from 'path';
 
 import {BasePathFinder} from '../base';
-import {PathInfo, PathMetadata, PathSource, PathType} from '../types';
+import {PathInfo, PathMetadata, PathSource} from '../types';
+
+``;
 
 export class WindowsPathFinder extends BasePathFinder {
   async findPaths(): Promise<PathInfo[]> {
@@ -113,42 +115,12 @@ export class WindowsPathFinder extends BasePathFinder {
     }
   }
 
-  protected _classifyPath(path: string): PathType {
-    const normalizedPath = path.toLowerCase();
-
-    if (this.isAppPath(path)) {
-      return PathType.APP;
-    }
-
-    if (normalizedPath.includes('photos')) {
-      return PathType.PHOTOS;
-    }
-
-    if (normalizedPath.includes('documents')) {
-      return PathType.DOCS;
-    }
-
-    if (this.isRootPath(normalizedPath)) {
-      return PathType.ROOT;
-    }
-
-    return PathType.OTHER;
-  }
-
-  private isRootPath(inputPath: string): boolean {
-    const normalizedPath = inputPath.toLowerCase().replace(/\\/g, '/').trim();
-    const name = basename(normalizedPath);
-    return name === 'iclouddrive' || name === 'icloud drive';
-  }
-
   private isAppPath(path: string): boolean {
     return this.isAppStoragePath(path);
   }
 
   private async _discoverAppStoragePaths(): Promise<void> {
-    const rootPaths = Array.from(this.pathMap.values()).filter(
-      info => info.type === PathType.ROOT && info.exists && info.isAccessible,
-    );
+    const rootPaths = Array.from(this.pathMap.values()).filter(info => info.exists && info.isAccessible);
 
     for (const rootPath of rootPaths) {
       try {
