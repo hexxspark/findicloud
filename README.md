@@ -19,7 +19,6 @@ A Node.js library and CLI tool for managing iCloud Drive files and directories, 
   - [find - Find iCloud Paths](#find---find-icloud-paths)
   - [copy - Copy Files to iCloud](#copy---copy-files-to-icloud-1)
 - [Platform-Specific Implementations](#platform-specific-implementations)
-- [Contributing](#contributing)
 - [License](#license)
 
 ## Prerequisites
@@ -513,39 +512,6 @@ On Windows, iCloud Drive uses a different directory structure:
     - Example: `C:\Users\{username}\iCloudDrive\iCloud~com~readdle~CommonDocuments`
 
 iCloudy automatically handles these different path formats and provides a consistent interface to access them.
-
-## Contributing
-
-Contributions to iCloudy are welcome! Here are some ways to contribute:
-
-### Development Environment Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/hexxspark/findicloud.git
-cd findicloud
-
-# Install dependencies
-pnpm install
-
-# Build the project
-pnpm build
-
-# Run tests
-pnpm test
-```
-
-### Submitting Pull Requests
-
-1. Fork the repository and create your branch
-2. Add or modify functionality
-3. Ensure tests pass
-4. Submit a Pull Request
-
-### Reporting Issues
-
-If you find a bug or have a feature request, please submit it on
-[GitHub Issues](https://github.com/hexxspark/findicloud/issues).
 
 ## License
 
