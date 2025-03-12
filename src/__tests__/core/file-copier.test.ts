@@ -78,6 +78,31 @@ jest.mock('fs', () => {
     },
     promises: {
       ...actualFs.promises,
+      access: (p: string) => {
+        // 确保测试路径能通过fileExists检查
+        if (p.includes('test/source') || p.includes('test/target')) {
+          return Promise.resolve();
+        }
+        return memfs.vol.promises.access(p);
+      },
+      stat: (p: string) => {
+        // 确保测试路径能通过stat检查
+        if (p.includes('test/source/file1.txt')) {
+          return Promise.resolve({
+            isFile: () => true,
+            isDirectory: () => false,
+            size: 100,
+          });
+        }
+        if (p.includes('test/source') && !p.includes('file')) {
+          return Promise.resolve({
+            isFile: () => false,
+            isDirectory: () => true,
+            size: 0,
+          });
+        }
+        return memfs.vol.promises.stat(p);
+      },
       readdir: (dirPath: string, options?: {withFileTypes?: boolean}) => {
         // Return expected results for test paths
         if (dirPath.includes('test/source')) {
@@ -119,17 +144,6 @@ jest.mock('fs', () => {
       copyFile: (_src: string, _dest: string) => {
         // Mock successful file copy
         return Promise.resolve(undefined);
-      },
-      stat: (p: string) => {
-        try {
-          return memfs.vol.promises.stat(p);
-        } catch (error) {
-          // Return expected results for test paths
-          if (String(p).includes('test/source/file1.txt') || String(p).includes('test/source/dir1/file2.txt')) {
-            return Promise.resolve({size: 100});
-          }
-          return Promise.reject(error);
-        }
       },
     },
   };
@@ -417,14 +431,24 @@ describe('FileCopier', () => {
         recursive: true,
       };
 
-      jest.spyOn(fs.promises, 'copyFile').mockRejectedValue(new Error('Copy failed'));
+      // 修改模拟实现，使其抛出正确格式的错误
+      jest.spyOn(fs, 'createReadStream').mockImplementation(() => {
+        const mockStream = new (require('stream').Readable)();
+        mockStream._read = () => {};
+        setTimeout(() => {
+          mockStream.emit('error', new Error('Mock copy error'));
+        }, 0);
+        return mockStream;
+      });
 
       const fileCopier = new FileCopier();
       const result = await fileCopier.copy(options);
 
       expect(result.success).toBe(false);
       expect(result.failedFiles).toContain(`${mockSourcePath}/file1.txt`);
-      expect(result.errors[0].message).toBe('Failed to read test/source/file1.txt: Mock copy error');
+      expect(result.errors[0].message).toBe(
+        'Failed to copy test/source/file1.txt to test/target/file1.txt: Failed to read test/source/file1.txt: Mock copy error',
+      );
     });
 
     it('should handle various error scenarios', async () => {

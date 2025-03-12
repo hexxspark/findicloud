@@ -3,6 +3,7 @@ import {minimatch} from 'minimatch';
 import * as path from 'path';
 
 import {PathInfo, SearchOptions} from '../types';
+import {calculateTotalSize, copyFileWithStreams, fileExists} from '../utils/common';
 import {PathFinder} from './path-finder';
 
 // Types specific to copy functionality
@@ -93,7 +94,8 @@ export class FileCopier {
    */
   async analyze(options: Omit<CopyOptions, 'dryRun' | 'overwrite'>): Promise<FileAnalysis> {
     const sourcePath = path.resolve(options.source);
-    if (!fs.existsSync(sourcePath)) {
+    const exists = await fileExists(sourcePath);
+    if (!exists) {
       throw new Error(`Source path does not exist: ${sourcePath}`);
     }
 
@@ -107,7 +109,7 @@ export class FileCopier {
       throw new Error('No files to copy');
     }
 
-    const totalSize = await this.calculateTotalSize(filesToCopy);
+    const totalSize = await calculateTotalSize(filesToCopy);
 
     return {
       source: sourcePath,
@@ -258,32 +260,8 @@ export class FileCopier {
    */
   private async copyFile(source: string, target: string, options: CopyOptions): Promise<void> {
     try {
-      const targetDir = path.dirname(target);
-      await fs.promises.mkdir(targetDir, {recursive: true});
-
-      if (!options.overwrite && fs.existsSync(target)) {
-        throw new Error(`Target file already exists: ${target}`);
-      }
-
-      // Use streams instead of fs.copyFile to avoid EPERM errors
-      return new Promise((resolve, reject) => {
-        const readStream = fs.createReadStream(source);
-        const writeStream = fs.createWriteStream(target);
-
-        readStream.on('error', err => {
-          reject(new Error(`Failed to read ${source}: ${err.message}`));
-        });
-
-        writeStream.on('error', err => {
-          reject(new Error(`Failed to write to ${target}: ${err.message}`));
-        });
-
-        writeStream.on('finish', () => {
-          resolve();
-        });
-
-        readStream.pipe(writeStream);
-      });
+      // Use the copyFileWithStreams utility from common.ts
+      await copyFileWithStreams(source, target, options.overwrite);
     } catch (error: any) {
       throw new Error(`Failed to copy ${source} to ${target}: ${error.message}`);
     }
@@ -296,17 +274,7 @@ export class FileCopier {
    * @returns Total size in bytes
    */
   private async calculateTotalSize(files: string[]): Promise<number> {
-    let totalSize = 0;
-
-    for (const file of files) {
-      try {
-        const stats = await fs.promises.stat(file);
-        totalSize += stats.size;
-      } catch {
-        // Skip files that can't be read
-      }
-    }
-
-    return totalSize;
+    // Use the calculateTotalSize utility from common.ts
+    return calculateTotalSize(files);
   }
 }

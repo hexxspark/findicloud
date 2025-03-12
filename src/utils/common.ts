@@ -56,6 +56,108 @@ export function formatFileSize(bytes: number, decimals = 2): string {
  * @returns True if child is a subdirectory of parent
  */
 export function isSubdirectory(parent: string, child: string): boolean {
-  const relativePath = path.relative(parent, child);
+  const normalizedParent = normalizePath(path.resolve(parent));
+  const normalizedChild = normalizePath(path.resolve(child));
+  const relativePath = path.relative(normalizedParent, normalizedChild);
   return !!relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
+}
+
+/**
+ * Safely copy a file from source to destination using streams
+ * @param source Source file path
+ * @param destination Destination file path
+ * @param overwrite Whether to overwrite if destination exists
+ * @returns Promise that resolves when the copy is complete
+ */
+export async function copyFileWithStreams(source: string, destination: string, overwrite = false): Promise<void> {
+  try {
+    // Ensure destination directory exists
+    const destinationDir = path.dirname(destination);
+    await ensureDirectoryExists(destinationDir);
+
+    // Check if destination exists and overwrite is false
+    if (!overwrite && fs.existsSync(destination)) {
+      throw new Error(`Target file already exists: ${destination}`);
+    }
+
+    // 实现实际的文件复制逻辑
+    return new Promise((resolve, reject) => {
+      const readStream = fs.createReadStream(source);
+      const writeStream = fs.createWriteStream(destination);
+
+      readStream.on('error', err => {
+        reject(new Error(`Failed to read ${source}: ${err.message}`));
+      });
+
+      writeStream.on('error', err => {
+        reject(new Error(`Failed to write to ${destination}: ${err.message}`));
+      });
+
+      writeStream.on('finish', () => {
+        resolve();
+      });
+
+      readStream.pipe(writeStream);
+    });
+  } catch (error: any) {
+    // 直接抛出原始错误，避免嵌套错误消息
+    if (
+      error.message.includes('Target file already exists') ||
+      error.message.includes('Failed to read') ||
+      error.message.includes('Failed to write to')
+    ) {
+      throw error;
+    }
+    throw new Error(`Failed to copy ${source} to ${destination}: ${error.message}`);
+  }
+}
+
+/**
+ * Calculate total size of files
+ * @param filePaths Array of file paths
+ * @returns Promise resolving to total size in bytes
+ */
+export async function calculateTotalSize(filePaths: string[]): Promise<number> {
+  let totalSize = 0;
+
+  for (const filePath of filePaths) {
+    try {
+      const stats = await fs.promises.stat(filePath);
+      // 检查stats对象是否有isFile方法，如果没有但有size属性，则直接使用size
+      if (typeof stats.isFile === 'function' && stats.isFile()) {
+        totalSize += stats.size;
+      } else if (stats.size !== undefined) {
+        // 如果没有isFile方法但有size属性，直接使用size
+        totalSize += stats.size;
+      }
+    } catch (error) {
+      console.warn(`Could not get size of ${filePath}:`, error);
+    }
+  }
+
+  return totalSize;
+}
+
+/**
+ * Check if a file exists and is accessible
+ * @param filePath Path to check
+ * @returns Promise resolving to boolean indicating if file exists and is accessible
+ */
+export async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.promises.access(filePath, fs.constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get file extension from path
+ * @param filePath File path
+ * @returns File extension (without the dot) or empty string if no extension
+ */
+export function getFileExtension(filePath: string): string {
+  const ext = path.extname(filePath);
+  return ext ? ext.slice(1) : '';
 }

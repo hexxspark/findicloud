@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import {join} from 'path';
 
 import {PathInfo, PathMetadata, PathSource} from '../types';
+import {fileExists} from '../utils/common';
 import {BaseOSAdapter} from './base-adapter';
 
 /**
@@ -83,7 +84,8 @@ export class WindowsAdapter extends BaseOSAdapter {
    */
   private async _isValidICloudPath(path: string): Promise<boolean> {
     try {
-      if (!fs.existsSync(path)) return false;
+      // Use fileExists from common.ts
+      if (!(await fileExists(path))) return false;
 
       // Check if it's a directory
       const stats = fs.statSync(path);
