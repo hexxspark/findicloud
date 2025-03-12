@@ -1,6 +1,6 @@
 import {vol} from 'memfs';
 
-import {WindowsPathFinder} from '../../platforms/win';
+import {WindowsAdapter} from '../../adapters/win-adapter';
 import {PathInfo} from '../../types';
 
 const mockExecSync = jest.fn();
@@ -25,7 +25,7 @@ jest.mock('fs', () => {
 });
 
 describe('WindowsPathFinder', () => {
-  let finder: WindowsPathFinder;
+  let adapter: WindowsAdapter;
   let originalUserProfile: string | undefined;
 
   beforeAll(() => {
@@ -88,18 +88,18 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
       return '';
     });
 
-    finder = new WindowsPathFinder();
+    adapter = new WindowsAdapter();
   });
 
   describe('Path Discovery', () => {
     it('should find root iCloud path', async () => {
-      const paths = await finder.findPaths();
+      const paths = await adapter.findPaths();
       const rootPath = paths.find((p: PathInfo) => p.path === 'C:\\Users\\TestUser\\iCloudDrive');
       expect(rootPath).toBeDefined();
     });
 
     it('should find all app storage paths with different formats', async () => {
-      const paths = await finder.findPaths();
+      const paths = await adapter.findPaths();
       const appPaths = paths.filter((p: PathInfo) => p.metadata.appId);
 
       expect(appPaths.length).toBe(7);
@@ -113,7 +113,7 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
     });
 
     it('should correctly identify app paths starting with ID', async () => {
-      const paths = await finder.findPaths();
+      const paths = await adapter.findPaths();
       const pixelmatorApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('pixelmator'));
       const mindnodeApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('mindnode'));
 
@@ -125,7 +125,7 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
     });
 
     it('should handle complex app names with dots and multiple segments', async () => {
-      const paths = await finder.findPaths();
+      const paths = await adapter.findPaths();
       const complexApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('SubApp.Module'));
 
       expect(complexApp).toBeDefined();
@@ -140,21 +140,21 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
         throw new Error('Registry access denied');
       });
 
-      const paths = await finder.findPaths();
+      const paths = await adapter.findPaths();
       expect(paths.length).toBeGreaterThan(0);
     });
 
     it('should handle missing registry keys', async () => {
       mockExecSync.mockReturnValue('');
 
-      const paths = await finder.findPaths();
+      const paths = await adapter.findPaths();
       expect(paths.length).toBeGreaterThan(0);
     });
   });
 
   describe('Path Metadata', () => {
     it('should correctly parse iCloud~ format app metadata', async () => {
-      const paths = await finder.findPaths();
+      const paths = await adapter.findPaths();
       const scriptableApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('Scriptable'));
       const numbersApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('Numbers'));
 
@@ -168,7 +168,7 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
     });
 
     it('should correctly parse ID~ format app metadata', async () => {
-      const paths = await finder.findPaths();
+      const paths = await adapter.findPaths();
       const mindnodeApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('mindnode'));
       const pixelmatorApp = paths.find((p: PathInfo) => p.metadata.appId?.includes('pixelmator'));
 
@@ -185,14 +185,14 @@ HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Sync
   describe('Error Handling', () => {
     it('should handle missing USERPROFILE', async () => {
       delete process.env.USERPROFILE;
-      const paths = await finder.findPaths();
+      const paths = await adapter.findPaths();
       expect(Array.isArray(paths)).toBeTruthy();
     });
 
     it('should handle inaccessible directories', async () => {
       jest.spyOn(vol.promises, 'readdir').mockRejectedValueOnce(new Error('EACCES: permission denied'));
 
-      const paths = await finder.findPaths();
+      const paths = await adapter.findPaths();
       expect(Array.isArray(paths)).toBeTruthy();
     });
 

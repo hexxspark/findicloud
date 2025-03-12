@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import {minimatch} from 'minimatch';
 import * as path from 'path';
 
-import {findiCloudPaths} from './find';
-import {PathInfo, SearchOptions} from './types';
+import {PathInfo, SearchOptions} from '../types';
+import {PathFinder} from './path-finder';
 
 // Types specific to copy functionality
 export interface CopyOptions {
@@ -35,60 +35,62 @@ export interface FileAnalysis {
   totalSize: number;
 }
 
-/**
- * Copy files to iCloud Drive
- *
- * @param source Source file or directory path
- * @param options Copy options
- * @returns Copy result
- *
- * @example
- * ```typescript
- * // Simple copy to iCloud Drive root
- * const result = await copyToiCloud('./localfile.txt');
- *
- * // Copy to specific app with options
- * const result = await copyToiCloud('./documents', 'Notes', {
- *   pattern: '*.md',
- *   recursive: true,
- *   overwrite: true
- * });
- * ```
- */
-export async function copyToiCloud(source: string, options?: Omit<CopyOptions, 'source' | 'app'>): Promise<CopyResult>;
-export async function copyToiCloud(
-  source: string,
-  target: string,
-  options?: Omit<CopyOptions, 'source' | 'app'>,
-): Promise<CopyResult>;
-export async function copyToiCloud(
-  source: string,
-  targetOrOptions?: string | Omit<CopyOptions, 'source' | 'app'>,
-  maybeOptions?: Omit<CopyOptions, 'source' | 'app'>,
-): Promise<CopyResult> {
-  const copier = new FileCopier();
+export class FileCopier {
+  /**
+   * Copy files to iCloud Drive
+   *
+   * @param source Source file or directory path
+   * @param options Copy options
+   * @returns Copy result
+   *
+   * @example
+   * ```typescript
+   * // Simple copy to iCloud Drive root
+   * const result = await FileCopier.copy('./localfile.txt');
+   *
+   * // Copy to specific app with options
+   * const result = await FileCopier.copy('./documents', 'Notes', {
+   *   pattern: '*.md',
+   *   recursive: true,
+   *   overwrite: true
+   * });
+   * ```
+   */
+  static async copy(source: string, options?: Omit<CopyOptions, 'source' | 'app'>): Promise<CopyResult>;
+  static async copy(source: string, target: string, options?: Omit<CopyOptions, 'source' | 'app'>): Promise<CopyResult>;
+  static async copy(
+    source: string,
+    targetOrOptions?: string | Omit<CopyOptions, 'source' | 'app'>,
+    maybeOptions?: Omit<CopyOptions, 'source' | 'app'>,
+  ): Promise<CopyResult> {
+    const copier = new FileCopier();
 
-  // Processing parameters
-  let target: string | undefined;
-  let options: Omit<CopyOptions, 'source'> = {};
+    // Processing parameters
+    let target: string | undefined;
+    let options: Omit<CopyOptions, 'source'> = {};
 
-  if (typeof targetOrOptions === 'string') {
-    // Call form: copyToiCloud(source, target, options)
-    target = targetOrOptions;
-    options = maybeOptions || {};
-  } else {
-    // Call form: copyToiCloud(source, options)
-    options = targetOrOptions || {};
+    if (typeof targetOrOptions === 'string') {
+      // Call form: copy(source, target, options)
+      target = targetOrOptions;
+      options = maybeOptions || {};
+    } else {
+      // Call form: copy(source, options)
+      options = targetOrOptions || {};
+    }
+
+    return copier.copy({
+      source,
+      app: target,
+      ...options,
+    });
   }
 
-  return copier.copy({
-    source,
-    app: target,
-    ...options,
-  });
-}
-
-export class FileCopier {
+  /**
+   * Analyze the copy operation without performing it
+   * @param options Copy options excluding dryRun and overwrite
+   * @returns Analysis of the copy operation including files to copy and total size
+   * @throws Error if source path doesn't exist, no valid target paths found, or no files to copy
+   */
   async analyze(options: Omit<CopyOptions, 'dryRun' | 'overwrite'>): Promise<FileAnalysis> {
     const sourcePath = path.resolve(options.source);
     if (!fs.existsSync(sourcePath)) {
@@ -187,15 +189,27 @@ export class FileCopier {
     return result;
   }
 
+  /**
+   * Find target paths based on the provided options
+   * @param options Copy options containing app name
+   * @returns Array of path info objects for target locations
+   */
   private async findTargetPaths(options: CopyOptions): Promise<PathInfo[]> {
     const searchOptions: SearchOptions = {
       appName: options.app,
       minScore: 10, // Ensure path reliability
     };
 
-    return findiCloudPaths(searchOptions);
+    return PathFinder.find(searchOptions);
   }
 
+  /**
+   * Find files to copy based on source path and options
+   * @param sourcePath Source path (file or directory)
+   * @param options Copy options including pattern and recursive flag
+   * @returns Array of file paths to copy
+   * @throws Error if source is a directory and recursive is false
+   */
   private async findFilesToCopy(sourcePath: string, options: CopyOptions): Promise<string[]> {
     const files: string[] = [];
     const pattern = options.pattern || '**/*';
@@ -213,6 +227,12 @@ export class FileCopier {
     return files;
   }
 
+  /**
+   * Recursively walk a directory and collect files matching the pattern
+   * @param dir Directory to walk
+   * @param pattern Glob pattern to match files against
+   * @param files Array to collect matching files into
+   */
   private async walkDirectory(dir: string, pattern: string, files: string[]): Promise<void> {
     const entries = await fs.promises.readdir(dir, {withFileTypes: true});
 
@@ -227,6 +247,13 @@ export class FileCopier {
     }
   }
 
+  /**
+   * Copy a file from source to target
+   * @param source Source file path
+   * @param target Target file path
+   * @param options Copy options
+   * @throws Error if the copy operation fails
+   */
   private async copyFile(source: string, target: string, options: CopyOptions): Promise<void> {
     try {
       const targetDir = path.dirname(target);
@@ -260,6 +287,11 @@ export class FileCopier {
     }
   }
 
+  /**
+   * Calculate the total size of all files in the list
+   * @param files Array of file paths to calculate size for
+   * @returns Total size in bytes
+   */
   private async calculateTotalSize(files: string[]): Promise<number> {
     let totalSize = 0;
 

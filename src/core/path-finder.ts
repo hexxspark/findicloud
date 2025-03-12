@@ -1,19 +1,16 @@
-import os from 'os';
+import {OSAdapter} from '../adapter';
+import {getAdapter} from '../adapters/adapter-factory';
+import {PathInfo, SearchOptions} from '../types';
 
-import {MacPathFinder} from './platforms/mac';
-import {WindowsPathFinder} from './platforms/win';
-import {PathInfo, SearchOptions} from './types';
-
-export class DriveFinder {
-  private finder: MacPathFinder | WindowsPathFinder;
-  private currentPlatform: NodeJS.Platform;
+export class PathFinder {
+  private adapter: OSAdapter;
 
   // Singleton implementation
-  private static instance: DriveFinder | null = null;
+  private static instance: PathFinder | null = null;
   private static platformOverride: NodeJS.Platform | undefined;
 
   // Obtain a singleton instance
-  public static getInstance(platformOverride?: NodeJS.Platform): DriveFinder {
+  public static getInstance(platformOverride?: NodeJS.Platform): PathFinder {
     // If a new platform override is provided and is different from the current one, reset the instance
     if (platformOverride !== undefined && platformOverride !== this.platformOverride) {
       this.reset();
@@ -21,7 +18,7 @@ export class DriveFinder {
     }
 
     if (!this.instance) {
-      this.instance = new DriveFinder(this.platformOverride);
+      this.instance = new PathFinder(this.platformOverride);
     }
 
     return this.instance;
@@ -33,20 +30,17 @@ export class DriveFinder {
     this.platformOverride = undefined;
   }
 
-  constructor(platformOverride?: NodeJS.Platform) {
-    this.currentPlatform = platformOverride || os.platform();
+  static async find(options?: SearchOptions, platformOverride?: NodeJS.Platform): Promise<PathInfo[]> {
+    const finder = PathFinder.getInstance(platformOverride);
+    return await finder.find(options);
+  }
 
-    if (this.currentPlatform === 'darwin') {
-      this.finder = new MacPathFinder();
-    } else if (this.currentPlatform === 'win32') {
-      this.finder = new WindowsPathFinder();
-    } else {
-      throw new Error('Unsupported platform: ' + this.currentPlatform);
-    }
+  constructor(platformOverride?: NodeJS.Platform) {
+    this.adapter = getAdapter(platformOverride);
   }
 
   async find(options: SearchOptions = {}): Promise<PathInfo[]> {
-    const paths = await this.finder.findPaths();
+    const paths = await this.adapter.findPaths();
     return this._filterPaths(paths, options);
   }
 
@@ -70,6 +64,12 @@ export class DriveFinder {
     return filtered;
   }
 
+  /**
+   * Find paths that match the given app name pattern
+   * @param pattern App name pattern to match
+   * @param paths List of paths to filter
+   * @returns Filtered and sorted list of paths that match the pattern
+   */
   private _findMatchingApps(pattern: string, paths: PathInfo[]): PathInfo[] {
     const searchTerms = pattern.toLowerCase().split(/\s+/);
 
@@ -83,6 +83,12 @@ export class DriveFinder {
       .map(result => result.path);
   }
 
+  /**
+   * Calculate a match score for a path against search terms
+   * @param searchTerms List of search terms to match
+   * @param path Path info to score
+   * @returns Match score (higher is better)
+   */
   private _calculateMatchScore(searchTerms: string[], path: PathInfo): number {
     let score = 0;
     const {appName, appId, bundleId} = path.metadata;
@@ -99,20 +105,4 @@ export class DriveFinder {
 
     return score;
   }
-}
-
-// Update the factory function
-export function createDriveFinder(platformOverride?: NodeJS.Platform): DriveFinder {
-  return DriveFinder.getInstance(platformOverride);
-}
-
-export async function findiCloudPaths(
-  options?: SearchOptions,
-  platformOverride?: NodeJS.Platform,
-): Promise<PathInfo[]> {
-  if (process.platform !== 'darwin' && process.platform !== 'win32' && !platformOverride) {
-    throw new Error('Unsupported platform: ' + process.platform);
-  }
-  const finder = createDriveFinder(platformOverride);
-  return await finder.find(options);
 }

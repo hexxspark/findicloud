@@ -1,7 +1,7 @@
 import {vol} from 'memfs';
 
-import {BasePathFinder} from '../base';
-import {PathInfo, PathMetadata, PathSource} from '../types';
+import {BaseOSAdapter} from '../../adapters/base-adapter';
+import {PathInfo, PathMetadata, PathSource} from '../../types';
 
 jest.mock('fs', () => {
   const memfs = require('memfs');
@@ -24,7 +24,7 @@ const REGISTRY_SOURCE: PathSource = {
   valueName: 'UserSyncRootPath',
 };
 
-class TestPathFinder extends BasePathFinder {
+class TestPathFinder extends BaseOSAdapter {
   public async findPaths(): Promise<PathInfo[]> {
     return Array.from(this.pathMap.values());
   }
@@ -50,7 +50,7 @@ class TestPathFinder extends BasePathFinder {
   }
 }
 
-describe('BasePathFinder', () => {
+describe('  OSAdapter', () => {
   let finder: TestPathFinder;
 
   beforeEach(() => {

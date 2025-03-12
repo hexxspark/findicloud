@@ -2,16 +2,18 @@ import fs from 'fs';
 import {vol} from 'memfs';
 import path from 'path';
 
-import {CopyOptions, FileCopier} from '../copy';
-import * as findModule from '../find';
+import {CopyOptions, FileCopier} from '../../core/file-copier';
+import {PathFinder} from '../../core/path-finder';
 
 // Mock path module to ensure consistent path format in tests
+
 jest.mock('path', () => {
   const originalPath = jest.requireActual('path');
   return {
     ...originalPath,
     join: (...args: string[]) => {
       // Ensure consistent path format using forward slashes
+
       return args.filter(Boolean).join('/');
     },
     resolve: (p: string) => p,
@@ -29,11 +31,13 @@ jest.mock('path', () => {
 });
 
 // Mock fs module with memfs
+
 jest.mock('fs', () => {
   const actualFs = jest.requireActual('fs');
   const memfs = require('memfs');
 
   // Create a properly structured Dirent mock
+
   const createDirentMock = (name: string, isDir = false) => ({
     name,
     isDirectory: () => isDir,
@@ -49,6 +53,7 @@ jest.mock('fs', () => {
     ...actualFs,
     existsSync: (p: string) => {
       // Return expected results for test paths
+
       if (p.includes('test/source') || p.includes('test/target')) {
         return true;
       }
@@ -59,6 +64,7 @@ jest.mock('fs', () => {
         return memfs.vol.statSync(_path);
       } catch (error) {
         // Return expected results for test paths
+
         if (String(_path).includes('test/source/file1.txt')) {
           return {
             isFile: () => true,
@@ -80,6 +86,7 @@ jest.mock('fs', () => {
       ...actualFs.promises,
       readdir: (dirPath: string, options?: {withFileTypes?: boolean}) => {
         // Return expected results for test paths
+
         if (dirPath.includes('test/source')) {
           if (dirPath.includes('dir1')) {
             return options && options.withFileTypes
@@ -92,6 +99,7 @@ jest.mock('fs', () => {
         }
 
         // If withFileTypes is true, return Dirent objects
+
         if (options && options.withFileTypes) {
           try {
             const items = memfs.vol.readdirSync(dirPath);
@@ -107,10 +115,12 @@ jest.mock('fs', () => {
           }
         }
         // Otherwise return string array
+
         return memfs.vol.promises.readdir(dirPath, options);
       },
       mkdir: (p: string, options?: any) => {
         // Return success for test paths
+
         if (p.includes('test/')) {
           return Promise.resolve(undefined);
         }
@@ -118,6 +128,7 @@ jest.mock('fs', () => {
       },
       copyFile: (_src: string, _dest: string) => {
         // Mock successful file copy
+
         return Promise.resolve(undefined);
       },
       stat: (p: string) => {
@@ -125,6 +136,7 @@ jest.mock('fs', () => {
           return memfs.vol.promises.stat(p);
         } catch (error) {
           // Return expected results for test paths
+
           if (String(p).includes('test/source/file1.txt') || String(p).includes('test/source/dir1/file2.txt')) {
             return Promise.resolve({size: 100});
           }
@@ -136,10 +148,12 @@ jest.mock('fs', () => {
 });
 
 // Mock locate module
-jest.mock('../find');
+
+jest.mock('../../core/path-finder');
 
 describe('FileCopier', () => {
   // Use paths without leading slash to avoid Windows issues
+
   const mockSourcePath = 'test/source';
   const mockTargetPath = 'test/target';
 
@@ -148,6 +162,7 @@ describe('FileCopier', () => {
     app: 'Documents',
     recursive: false,
     overwrite: true, // Allow overwriting existing files
+
     dryRun: false,
   };
 
@@ -155,8 +170,9 @@ describe('FileCopier', () => {
     jest.clearAllMocks();
     vol.reset();
 
-    // Mock findiCloudPaths to return a valid target path
-    jest.spyOn(findModule, 'findiCloudPaths').mockResolvedValue([
+    // Mock find to return a valid target path
+
+    jest.spyOn(PathFinder, 'find').mockResolvedValue([
       {
         path: mockTargetPath,
         isAccessible: true,
@@ -173,6 +189,7 @@ describe('FileCopier', () => {
   describe('copy', () => {
     it('should successfully copy a single file', async () => {
       // Mock FileCopier.analyze method
+
       jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValue({
         source: `${mockSourcePath}/file1.txt`,
         targetPaths: [
@@ -190,10 +207,12 @@ describe('FileCopier', () => {
       });
 
       // Mock successful file copy
+
       jest.spyOn(fs, 'createReadStream').mockImplementation(() => {
         const mockStream = new (require('stream').Readable)();
         mockStream._read = () => {};
         // Emit 'end' event to simulate successful read
+
         setTimeout(() => {
           mockStream.push(null); // End the stream
         }, 0);
@@ -224,6 +243,7 @@ describe('FileCopier', () => {
 
     it('should handle recursive directory copy', async () => {
       // Mock FileCopier.analyze method
+
       jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValue({
         source: mockSourcePath,
         targetPaths: [
@@ -241,10 +261,12 @@ describe('FileCopier', () => {
       });
 
       // Mock successful file copy
+
       jest.spyOn(fs, 'createReadStream').mockImplementation(() => {
         const mockStream = new (require('stream').Readable)();
         mockStream._read = () => {};
         // Emit 'end' event to simulate successful read
+
         setTimeout(() => {
           mockStream.push(null); // End the stream
         }, 0);
@@ -272,6 +294,7 @@ describe('FileCopier', () => {
 
     it('should handle file pattern matching', async () => {
       // Mock FileCopier.analyze method
+
       jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValue({
         source: mockSourcePath,
         targetPaths: [
@@ -289,10 +312,12 @@ describe('FileCopier', () => {
       });
 
       // Mock successful file copy
+
       jest.spyOn(fs, 'createReadStream').mockImplementation(() => {
         const mockStream = new (require('stream').Readable)();
         mockStream._read = () => {};
         // Emit 'end' event to simulate successful read
+
         setTimeout(() => {
           mockStream.push(null); // End the stream
         }, 0);
@@ -320,6 +345,7 @@ describe('FileCopier', () => {
 
     it('should handle dry run mode', async () => {
       // Mock FileCopier.analyze method
+
       jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValue({
         source: mockSourcePath,
         targetPaths: [
@@ -337,6 +363,7 @@ describe('FileCopier', () => {
       });
 
       // Mock copyFile to track calls
+
       const mockCopyFile = jest.fn().mockResolvedValue(undefined);
       jest.spyOn(fs.promises, 'copyFile').mockImplementation(mockCopyFile);
 
@@ -352,6 +379,7 @@ describe('FileCopier', () => {
 
     it('should handle copy errors', async () => {
       // Mock FileCopier.analyze method
+
       jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValue({
         source: mockSourcePath,
         targetPaths: [
@@ -369,6 +397,7 @@ describe('FileCopier', () => {
       });
 
       // Mock fs.createReadStream to throw an error
+
       const mockError = new Error('Mock copy error');
       jest.spyOn(fs, 'createReadStream').mockImplementation(() => {
         const mockStream = new (require('stream').Readable)();
@@ -380,6 +409,7 @@ describe('FileCopier', () => {
       });
 
       // Make sure the directory exists for the target path
+
       jest.spyOn(fs.promises, 'mkdir').mockResolvedValue(undefined);
 
       const fileCopier = new FileCopier();
@@ -393,6 +423,7 @@ describe('FileCopier', () => {
 
     it('should not overwrite existing files when overwrite is false', async () => {
       // Mock FileCopier.analyze method
+
       jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValue({
         source: mockSourcePath,
         targetPaths: [
@@ -410,6 +441,7 @@ describe('FileCopier', () => {
       });
 
       // Mock existsSync to return true (file exists)
+
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
 
       const noOverwriteOptions = {
@@ -429,9 +461,11 @@ describe('FileCopier', () => {
   describe('analyze', () => {
     it('should analyze a single file', async () => {
       // Mock FileCopier.analyze method for this test
+
       jest.spyOn(FileCopier.prototype, 'analyze').mockRestore();
 
       // Mock file system methods
+
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
       jest.spyOn(fs, 'statSync').mockImplementation(
         _path =>
@@ -444,6 +478,7 @@ describe('FileCopier', () => {
       jest.spyOn(fs.promises, 'stat').mockResolvedValue({size: 100} as any);
 
       // Mock findFilesToCopy to return a single file
+
       jest.spyOn(FileCopier.prototype as any, 'findFilesToCopy').mockResolvedValue([`${mockSourcePath}/file1.txt`]);
 
       const singleFileOptions = {
@@ -462,9 +497,11 @@ describe('FileCopier', () => {
 
     it('should analyze directories recursively', async () => {
       // Mock FileCopier.analyze method for this test
+
       jest.spyOn(FileCopier.prototype, 'analyze').mockRestore();
 
       // Mock file system methods
+
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
       jest.spyOn(fs, 'statSync').mockImplementation(_path => {
         if (String(_path).includes('file')) {
@@ -474,6 +511,7 @@ describe('FileCopier', () => {
       });
 
       // Mock findFilesToCopy to return multiple files
+
       jest
         .spyOn(FileCopier.prototype as any, 'findFilesToCopy')
         .mockResolvedValue([`${mockSourcePath}/file1.txt`, `${mockSourcePath}/dir1/file2.txt`]);
@@ -492,18 +530,60 @@ describe('FileCopier', () => {
   });
 });
 
-// Tests for copyToiCloud function
-describe('copyToiCloud', () => {
-  // Use the same paths as in previous tests
+// Add tests for uncovered code paths
+
+describe('FileCopier - Error Handling', () => {
   const mockSourcePath = 'test/source';
   const mockTargetPath = 'test/target';
 
   beforeEach(() => {
     jest.clearAllMocks();
     vol.reset();
+  });
 
-    // Mock findiCloudPaths to return a valid target path
-    jest.spyOn(findModule, 'findiCloudPaths').mockResolvedValue([
+  it('should handle errors during file copy operation', async () => {
+    // Mock FileCopier.analyze method
+
+    jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValue({
+      source: mockSourcePath,
+      targetPaths: [
+        {
+          path: mockTargetPath,
+          isAccessible: true,
+          exists: true,
+          score: 100,
+          metadata: {appName: 'Documents'},
+        },
+      ],
+      filesToCopy: [`${mockSourcePath}/file1.txt`],
+      totalFiles: 1,
+      totalSize: 100,
+    });
+
+    // Mock copyFile to throw an error
+
+    jest.spyOn(FileCopier.prototype as any, 'copyFile').mockRejectedValue(new Error('Mock copy error'));
+
+    const fileCopier = new FileCopier();
+    const result = await fileCopier.copy({
+      source: mockSourcePath,
+      app: 'Documents',
+      recursive: false,
+      overwrite: true,
+      dryRun: false,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.failedFiles).toContain(`${mockSourcePath}/file1.txt`);
+    expect(result.errors[0].message).toBe('Mock copy error');
+
+    jest.spyOn(FileCopier.prototype as any, 'copyFile').mockRestore();
+    jest.spyOn(FileCopier.prototype, 'analyze').mockRestore();
+  });
+
+  it('should use findTargetPaths to locate iCloud paths', async () => {
+    // Mock find to return a specific result for this test
+    const mockFind = jest.spyOn(PathFinder, 'find').mockResolvedValue([
       {
         path: mockTargetPath,
         isAccessible: true,
@@ -515,104 +595,31 @@ describe('copyToiCloud', () => {
         },
       },
     ]);
-  });
 
-  it('should delegate to FileCopier', async () => {
-    // Mock FileCopier.copy method
-    const mockCopyResult = {
-      success: true,
-      targetPath: mockTargetPath,
-      copiedFiles: ['file1.txt'],
-      failedFiles: [],
-      errors: [],
-    };
+    const fileCopier = new FileCopier();
+    // Make sure to call findTargetPaths
+    const findTargetPathsSpy = jest.spyOn(fileCopier as any, 'findTargetPaths');
 
-    // Use spy instead of replacing the entire class
-    const copySpy = jest.spyOn(FileCopier.prototype, 'copy').mockResolvedValueOnce(mockCopyResult);
-
-    const {copyToiCloud} = require('../copy');
-
-    // Call the function
-    const result = await copyToiCloud(mockSourcePath, {
-      app: 'Documents',
-      recursive: true,
-    });
-
-    // Verify FileCopier.copy was called
-    expect(copySpy).toHaveBeenCalledWith({
+    await fileCopier.analyze({
       source: mockSourcePath,
       app: 'Documents',
       recursive: true,
     });
 
-    // Verify result
-    expect(result).toEqual(mockCopyResult);
-  });
-
-  it('should work with default options', async () => {
-    // Mock FileCopier.copy method
-    const mockCopyResult = {
-      success: true,
-      targetPath: mockTargetPath,
-      copiedFiles: ['file1.txt'],
-      failedFiles: [],
-      errors: [],
-    };
-
-    // Use spy instead of replacing the entire class
-    const copySpy = jest.spyOn(FileCopier.prototype, 'copy').mockResolvedValueOnce(mockCopyResult);
-
-    const {copyToiCloud} = require('../copy');
-
-    // Call the function
-    const result = await copyToiCloud(mockSourcePath);
-
-    // Verify FileCopier.copy was called with only source parameter
-    expect(copySpy).toHaveBeenCalledWith({
-      source: mockSourcePath,
+    // Verify that findTargetPaths and find are called
+    expect(findTargetPathsSpy).toHaveBeenCalled();
+    expect(mockFind).toHaveBeenCalledWith({
+      appName: 'Documents',
+      minScore: 10,
     });
-
-    // Verify result
-    expect(result).toEqual(mockCopyResult);
-  });
-
-  it('should work with target and options parameters', async () => {
-    // Mock FileCopier.copy method
-    const mockCopyResult = {
-      success: true,
-      targetPath: mockTargetPath,
-      copiedFiles: ['file1.txt'],
-      failedFiles: [],
-      errors: [],
-    };
-
-    // Use spy instead of replacing the entire class
-    const copySpy = jest.spyOn(FileCopier.prototype, 'copy').mockResolvedValueOnce(mockCopyResult);
-
-    const {copyToiCloud} = require('../copy');
-
-    // Call the function with target and options
-    const result = await copyToiCloud(mockSourcePath, 'Notes', {
-      recursive: true,
-      overwrite: true,
-    });
-
-    // Verify FileCopier.copy was called with correct parameters
-    expect(copySpy).toHaveBeenCalledWith({
-      source: mockSourcePath,
-      app: 'Notes',
-      recursive: true,
-      overwrite: true,
-    });
-
-    // Verify result
-    expect(result).toEqual(mockCopyResult);
   });
 });
 
 // Tests for FileCopier.copy method overloads
+
 describe('FileCopier.copy overloads', () => {
   // Use the same paths as in previous tests
+
   const mockSourcePath = 'test/source';
   const mockTargetPath = 'test/target';
 
@@ -620,8 +627,9 @@ describe('FileCopier.copy overloads', () => {
     jest.clearAllMocks();
     vol.reset();
 
-    // Mock findiCloudPaths to return a valid target path
-    jest.spyOn(findModule, 'findiCloudPaths').mockResolvedValue([
+    // Mock find to return a valid target path
+
+    jest.spyOn(PathFinder, 'find').mockResolvedValue([
       {
         path: mockTargetPath,
         isAccessible: true,
@@ -635,6 +643,7 @@ describe('FileCopier.copy overloads', () => {
     ]);
 
     // Mock FileCopier.analyze method
+
     jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValue({
       source: mockSourcePath,
       targetPaths: [
@@ -652,10 +661,12 @@ describe('FileCopier.copy overloads', () => {
     });
 
     // Mock successful file copy
+
     jest.spyOn(fs, 'createReadStream').mockImplementation(() => {
       const mockStream = new (require('stream').Readable)();
       mockStream._read = () => {};
       // Emit 'end' event to simulate successful read
+
       setTimeout(() => {
         mockStream.push(null); // End the stream
       }, 0);
@@ -673,6 +684,7 @@ describe('FileCopier.copy overloads', () => {
 
   it('should work with options object parameter', async () => {
     // Re-mock the analyze method to ensure it returns the correct result
+
     jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValueOnce({
       source: mockSourcePath,
       targetPaths: [
@@ -690,6 +702,7 @@ describe('FileCopier.copy overloads', () => {
     });
 
     // Mock existsSync to return false, indicating the target file does not exist
+
     jest.spyOn(fs, 'existsSync').mockReturnValueOnce(false);
 
     const fileCopier = new FileCopier();
@@ -708,6 +721,7 @@ describe('FileCopier.copy overloads', () => {
 
   it('should work with source and target parameters', async () => {
     // Re-mock the analyze method to ensure it returns the correct result
+
     jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValueOnce({
       source: mockSourcePath,
       targetPaths: [
@@ -725,6 +739,7 @@ describe('FileCopier.copy overloads', () => {
     });
 
     // Mock existsSync to return false, indicating the target file does not exist
+
     jest.spyOn(fs, 'existsSync').mockReturnValueOnce(false);
 
     const fileCopier = new FileCopier();
@@ -738,6 +753,7 @@ describe('FileCopier.copy overloads', () => {
 
   it('should work with source, target, and options parameters', async () => {
     // Re-mock the analyze method to ensure it returns the correct result
+
     jest.spyOn(FileCopier.prototype, 'analyze').mockResolvedValueOnce({
       source: mockSourcePath,
       targetPaths: [
@@ -755,6 +771,7 @@ describe('FileCopier.copy overloads', () => {
     });
 
     // Mock existsSync to return false, indicating the target file does not exist
+
     jest.spyOn(fs, 'existsSync').mockReturnValueOnce(false);
 
     const fileCopier = new FileCopier();

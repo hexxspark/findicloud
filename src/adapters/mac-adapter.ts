@@ -1,11 +1,16 @@
+/**
+ * Mac adapter implementation
+ * Handles Mac-specific file operations and path finding
+ */
+
 import * as fs from 'fs';
 import * as os from 'os';
 import {join} from 'path';
 
-import {BasePathFinder} from '../base';
 import {PathInfo, PathMetadata, PathSource} from '../types';
+import {BaseOSAdapter} from './base-adapter';
 
-export class MacPathFinder extends BasePathFinder {
+export class MacAdapter extends BaseOSAdapter {
   private readonly MOBILE_DOCUMENTS_PATH = 'Library/Mobile Documents';
   private readonly ICLOUD_ROOT_DIR = 'com.apple.CloudDocs';
 

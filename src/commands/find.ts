@@ -1,7 +1,7 @@
 import {Args, Flags} from '@oclif/core';
 
 import {BaseCommand, CommandOptions} from '../command';
-import {findiCloudPaths} from '../find';
+import {PathFinder} from '../core/path-finder';
 import {PathInfo} from '../types';
 import {colors} from '../utils/colors';
 
@@ -64,7 +64,7 @@ export default class FindCommand extends BaseCommand {
         this.log(colors.info('Finding iCloud Drive paths...'));
       }
 
-      const paths = await findiCloudPaths(options);
+      const paths = await PathFinder.find(options);
       const accessiblePaths = paths.filter(p => p.isAccessible);
 
       if (paths.length === 0) {

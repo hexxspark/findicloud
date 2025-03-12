@@ -1,10 +1,10 @@
 import {confirm} from '@inquirer/prompts';
 import {test} from '@oclif/test';
 
-import {CopyResult, FileAnalysis, FileCopier} from '../../copy';
+import {CopyResult, FileAnalysis, FileCopier} from '../../core/file-copier';
 
 // Mock dependencies
-jest.mock('../../copy');
+jest.mock('../../core/file-copier');
 jest.mock('@inquirer/prompts', () => ({
   confirm: jest.fn(),
 }));

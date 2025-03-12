@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 
 import {BaseCommand} from '../command';
-import {CopyOptions, FileCopier} from '../copy';
+import {CopyOptions, FileCopier} from '../core/file-copier';
 import {colors} from '../utils/colors';
 
 export default class CopyCommand extends BaseCommand {

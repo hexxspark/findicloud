@@ -3,7 +3,8 @@ import {vol} from 'memfs';
 import * as os from 'os';
 import * as path from 'path';
 
-import {DriveFinder} from '../find';
+import {BaseOSAdapter} from '../../adapters/base-adapter';
+import {PathFinder} from '../../core/path-finder';
 
 jest.mock('child_process');
 jest.mock('os');
@@ -42,8 +43,8 @@ jest.mock('path', () => {
   };
 });
 
-describe('DriveFinder', () => {
-  let finder: DriveFinder;
+describe('PathFinder', () => {
+  let finder: PathFinder;
 
   beforeEach(() => {
     vol.reset();
@@ -73,8 +74,8 @@ describe('DriveFinder', () => {
 
       vol.fromJSON(testFiles);
       // Reset singleton state and get instance
-      DriveFinder.reset();
-      finder = DriveFinder.getInstance();
+      PathFinder.reset();
+      finder = PathFinder.getInstance();
     });
 
     it('should find app data', async () => {
@@ -89,7 +90,7 @@ describe('DriveFinder', () => {
     it('should find photos directory', async () => {
       // Manually add Photos path
       const photosPath = '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos';
-      finder['finder']['_addPath'](photosPath, {source: 'common'});
+      (finder['adapter'] as BaseOSAdapter)['_addPath'](photosPath, {source: 'common'});
 
       const results = await finder.find();
       const photoPaths = results.filter(p => p.path.includes('Photos'));
@@ -123,19 +124,19 @@ describe('DriveFinder', () => {
 
     it('should work with singleton pattern', async () => {
       // Reset singleton
-      DriveFinder.reset();
+      PathFinder.reset();
 
       // Get instance and test
-      const instance1 = DriveFinder.getInstance();
+      const instance1 = PathFinder.getInstance();
       const results1 = await instance1.find();
       expect(results1.length).toBeGreaterThan(0);
 
       // Get another instance (should be the same)
-      const instance2 = DriveFinder.getInstance();
+      const instance2 = PathFinder.getInstance();
       expect(instance2).toBe(instance1);
 
       // Use different platform parameter
-      const instance3 = DriveFinder.getInstance('win32');
+      const instance3 = PathFinder.getInstance('win32');
       expect(instance3).not.toBe(instance1);
     });
   });
@@ -162,8 +163,8 @@ describe('DriveFinder', () => {
       );
 
       // Use singleton pattern
-      DriveFinder.reset();
-      finder = DriveFinder.getInstance();
+      PathFinder.reset();
+      finder = PathFinder.getInstance();
     });
 
     it('should find paths on Windows', async () => {
@@ -204,7 +205,7 @@ describe('DriveFinder', () => {
 
       vol.fromJSON(testFiles);
 
-      finder = new DriveFinder();
+      finder = new PathFinder();
     });
 
     it('should find paths on macOS', async () => {
@@ -237,7 +238,7 @@ describe('DriveFinder', () => {
     });
 
     it('should throw error for unsupported platform', () => {
-      expect(() => new DriveFinder()).toThrow('Unsupported platform: linux');
+      expect(() => new PathFinder()).toThrow('Unsupported platform: linux');
     });
   });
 
@@ -245,19 +246,19 @@ describe('DriveFinder', () => {
     beforeEach(() => {
       mockedPlatform.mockReturnValue('win32');
       mockedHomedir.mockReturnValue('C:\\Users\\TestUser');
-      finder = new DriveFinder();
+      finder = new PathFinder();
     });
 
     it('should handle file system errors', async () => {
       // Mock file system error
-      jest.spyOn(finder['finder'], 'findPaths').mockRejectedValue(new Error('File system error'));
+      jest.spyOn(finder['adapter'], 'findPaths').mockRejectedValue(new Error('File system error'));
 
       await expect(finder.find()).rejects.toThrow('File system error');
     });
 
     it('should handle empty results', async () => {
       // Mock empty results
-      jest.spyOn(finder['finder'], 'findPaths').mockResolvedValue([]);
+      jest.spyOn(finder['adapter'], 'findPaths').mockResolvedValue([]);
 
       const results = await finder.find();
       expect(results).toEqual([]);

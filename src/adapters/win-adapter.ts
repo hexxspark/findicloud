@@ -1,13 +1,16 @@
+/**
+ * Windows adapter implementation
+ * Handles Windows-specific file operations and path finding
+ */
+
 import {execSync} from 'child_process';
 import * as fs from 'fs';
 import {join} from 'path';
 
-import {BasePathFinder} from '../base';
 import {PathInfo, PathMetadata, PathSource} from '../types';
+import {BaseOSAdapter} from './base-adapter';
 
-``;
-
-export class WindowsPathFinder extends BasePathFinder {
+export class WindowsAdapter extends BaseOSAdapter {
   async findPaths(): Promise<PathInfo[]> {
     try {
       // First try to find paths in common locations

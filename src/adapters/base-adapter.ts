@@ -1,9 +1,10 @@
-import * as fs from 'fs';
-import * as pathModule from 'path';
+import fs from 'fs';
+import pathModule from 'path';
 
-import {PathInfo, PathMetadata, PathSource} from './types';
+import {OSAdapter} from '../adapter';
+import {PathInfo, PathMetadata, PathSource} from '../types';
 
-export abstract class BasePathFinder {
+export abstract class BaseOSAdapter implements OSAdapter {
   protected pathMap: Map<string, PathInfo> = new Map();
 
   protected _addPath(path: string, source: PathSource): void {

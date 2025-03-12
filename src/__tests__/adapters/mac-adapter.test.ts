@@ -1,7 +1,7 @@
 import {vol} from 'memfs';
 import path from 'path';
 
-import {MacPathFinder} from '../../platforms/mac';
+import {MacAdapter} from '../../adapters/mac-adapter';
 import {PathInfo} from '../../types';
 
 // Mock child_process
@@ -48,7 +48,7 @@ jest.mock('path', () => {
 const {homedir} = require('os');
 
 describe('MacPathFinder', () => {
-  let finder: MacPathFinder;
+  let adapter: MacAdapter;
   let originalPlatform: NodeJS.Platform;
 
   beforeAll(() => {
@@ -95,7 +95,7 @@ describe('MacPathFinder', () => {
     );
 
     vol.fromJSON(normalizedFiles);
-    finder = new MacPathFinder();
+    adapter = new MacAdapter();
   });
 
   afterEach(() => {
@@ -104,14 +104,14 @@ describe('MacPathFinder', () => {
 
   describe('Path Finding', () => {
     it('should find root iCloud Drive path', async () => {
-      const result = await finder.findPaths();
+      const result = await adapter.findPaths();
       const rootPath = result.find((p: PathInfo) => p.path.includes('com~apple~CloudDocs'));
       expect(rootPath).toBeDefined();
       expect(rootPath?.path).toBe('/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs');
     });
 
     it('should find app paths', async () => {
-      const result = await finder.findPaths();
+      const result = await adapter.findPaths();
       const appPaths = result.filter((p: PathInfo) => p.metadata.appId);
 
       expect(appPaths.length).toBeGreaterThan(0);
@@ -130,7 +130,7 @@ describe('MacPathFinder', () => {
       const mockReaddir = jest.spyOn(vol.promises, 'readdir');
       mockReaddir.mockRejectedValueOnce(new Error('EACCES: permission denied'));
 
-      const result = await finder.findPaths();
+      const result = await adapter.findPaths();
       expect(Array.isArray(result)).toBeTruthy();
     });
   });
@@ -138,20 +138,20 @@ describe('MacPathFinder', () => {
   describe('Error Handling', () => {
     it('should handle missing home directory', async () => {
       homedir.mockReturnValueOnce('');
-      const result = await finder.findPaths();
+      const result = await adapter.findPaths();
       expect(Array.isArray(result)).toBeTruthy();
     });
 
     it('should handle file system errors', async () => {
       jest.spyOn(vol.promises, 'readdir').mockRejectedValueOnce(new Error('File system error'));
-      const result = await finder.findPaths();
+      const result = await adapter.findPaths();
       expect(Array.isArray(result)).toBeTruthy();
     });
   });
 
   describe('Path Metadata', () => {
     it('should enrich app storage metadata', async () => {
-      const result = await finder.findPaths();
+      const result = await adapter.findPaths();
       const notesApp = result.find((p: PathInfo) => p.metadata.appId?.includes('apple~notes'));
 
       expect(notesApp?.metadata.appName).toBe('Notes');
@@ -160,7 +160,7 @@ describe('MacPathFinder', () => {
     });
 
     it('should handle various app naming patterns', async () => {
-      const result = await finder.findPaths();
+      const result = await adapter.findPaths();
       const obsidianApp = result.find((p: PathInfo) => p.metadata.appId?.includes('obsidian'));
 
       expect(obsidianApp?.metadata.appName).toBe('Obsidian');

@@ -1,20 +1,17 @@
-import {findiCloudPaths} from '..';
+import {PathFinder} from '../core/path-finder';
 
 describe('Index Exports', () => {
-  it('should export findICloudDrivePaths function', () => {
-    expect(typeof findiCloudPaths).toBe('function');
+  it('should export PathFinder.find function', () => {
+    expect(typeof PathFinder.find).toBe('function');
   });
 
   it('should handle unsupported platforms', async () => {
-    // Mock platform as Linux
+    // Save original platform
     const originalPlatform = process.platform;
-    Object.defineProperty(process, 'platform', {
-      value: 'linux',
-      configurable: true,
-    });
 
     try {
-      await expect(findiCloudPaths()).rejects.toThrow('Unsupported platform');
+      // Test with unsupported platform
+      await expect(PathFinder.find({}, 'linux' as NodeJS.Platform)).rejects.toThrow('Unsupported platform');
     } finally {
       // Restore original platform
       Object.defineProperty(process, 'platform', {
@@ -25,6 +22,9 @@ describe('Index Exports', () => {
   });
 
   it('should handle search options', async () => {
+    // Reset PathFinder instance to ensure clean state
+    PathFinder.reset();
+
     // Mock platform as Windows for testing
     const originalPlatform = process.platform;
     Object.defineProperty(process, 'platform', {
@@ -33,11 +33,14 @@ describe('Index Exports', () => {
     });
 
     try {
-      const result = await findiCloudPaths({
-        includeInaccessible: false,
-        minScore: 10,
-        appName: 'test',
-      });
+      const result = await PathFinder.find(
+        {
+          includeInaccessible: false,
+          minScore: 10,
+          appName: 'test',
+        },
+        'win32',
+      ); // Explicitly pass platform override
 
       expect(Array.isArray(result)).toBeTruthy();
     } finally {
@@ -46,6 +49,8 @@ describe('Index Exports', () => {
         value: originalPlatform,
         configurable: true,
       });
+      // Reset PathFinder instance after test
+      PathFinder.reset();
     }
   });
 });
