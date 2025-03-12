@@ -86,10 +86,10 @@ export class FileCopier {
   }
 
   /**
-   * Analyze the copy operation without performing it
+   * Analyze source path and determine files to copy
+   *
    * @param options Copy options excluding dryRun and overwrite
-   * @returns Analysis of the copy operation including files to copy and total size
-   * @throws Error if source path doesn't exist, no valid target paths found, or no files to copy
+   * @returns Analysis result with files to copy and target paths
    */
   async analyze(options: Omit<CopyOptions, 'dryRun' | 'overwrite'>): Promise<FileAnalysis> {
     const sourcePath = path.resolve(options.source);
@@ -190,9 +190,10 @@ export class FileCopier {
   }
 
   /**
-   * Find target paths based on the provided options
-   * @param options Copy options containing app name
-   * @returns Array of path info objects for target locations
+   * Find target paths based on app name
+   *
+   * @param options Copy options
+   * @returns Array of path info objects
    */
   private async findTargetPaths(options: CopyOptions): Promise<PathInfo[]> {
     const searchOptions: SearchOptions = {
@@ -205,10 +206,10 @@ export class FileCopier {
 
   /**
    * Find files to copy based on source path and options
-   * @param sourcePath Source path (file or directory)
-   * @param options Copy options including pattern and recursive flag
+   *
+   * @param sourcePath Source path
+   * @param options Copy options
    * @returns Array of file paths to copy
-   * @throws Error if source is a directory and recursive is false
    */
   private async findFilesToCopy(sourcePath: string, options: CopyOptions): Promise<string[]> {
     const files: string[] = [];
@@ -228,10 +229,11 @@ export class FileCopier {
   }
 
   /**
-   * Recursively walk a directory and collect files matching the pattern
+   * Recursively walk directory and collect files matching pattern
+   *
    * @param dir Directory to walk
-   * @param pattern Glob pattern to match files against
-   * @param files Array to collect matching files into
+   * @param pattern File pattern to match
+   * @param files Array to collect matching files
    */
   private async walkDirectory(dir: string, pattern: string, files: string[]): Promise<void> {
     const entries = await fs.promises.readdir(dir, {withFileTypes: true});
@@ -248,11 +250,11 @@ export class FileCopier {
   }
 
   /**
-   * Copy a file from source to target
+   * Copy a single file from source to target
+   *
    * @param source Source file path
    * @param target Target file path
    * @param options Copy options
-   * @throws Error if the copy operation fails
    */
   private async copyFile(source: string, target: string, options: CopyOptions): Promise<void> {
     try {
@@ -288,8 +290,9 @@ export class FileCopier {
   }
 
   /**
-   * Calculate the total size of all files in the list
-   * @param files Array of file paths to calculate size for
+   * Calculate total size of files to copy
+   *
+   * @param files Array of file paths
    * @returns Total size in bytes
    */
   private async calculateTotalSize(files: string[]): Promise<number> {

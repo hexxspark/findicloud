@@ -10,7 +10,15 @@ import {join} from 'path';
 import {PathInfo, PathMetadata, PathSource} from '../types';
 import {BaseOSAdapter} from './base-adapter';
 
+/**
+ * Windows-specific adapter for finding iCloud paths
+ */
 export class WindowsAdapter extends BaseOSAdapter {
+  /**
+   * Find iCloud paths on Windows
+   *
+   * @returns Promise resolving to array of path info objects
+   */
   async findPaths(): Promise<PathInfo[]> {
     try {
       // First try to find paths in common locations
@@ -31,6 +39,9 @@ export class WindowsAdapter extends BaseOSAdapter {
     }
   }
 
+  /**
+   * Find iCloud paths in common file system locations
+   */
   private async _findInCommonLocations(): Promise<void> {
     const userProfile = process.env.USERPROFILE;
     if (!userProfile) {
@@ -64,6 +75,12 @@ export class WindowsAdapter extends BaseOSAdapter {
     }
   }
 
+  /**
+   * Check if a path is a valid iCloud directory
+   *
+   * @param path Path to check
+   * @returns True if the path is a valid iCloud directory
+   */
   private async _isValidICloudPath(path: string): Promise<boolean> {
     try {
       if (!fs.existsSync(path)) return false;
@@ -80,6 +97,9 @@ export class WindowsAdapter extends BaseOSAdapter {
     }
   }
 
+  /**
+   * Find iCloud paths in Windows registry
+   */
   private async _findInRegistry(): Promise<void> {
     const regPaths = [
       'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\SyncRootManager',
@@ -105,6 +125,11 @@ export class WindowsAdapter extends BaseOSAdapter {
     }
   }
 
+  /**
+   * Parse registry output to find iCloud paths
+   *
+   * @param output Registry command output
+   */
   private _parseRegistryOutput(output: string): void {
     const lines = output.split('\r\n');
     for (const line of lines) {
@@ -118,10 +143,9 @@ export class WindowsAdapter extends BaseOSAdapter {
     }
   }
 
-  private isAppPath(path: string): boolean {
-    return this.isAppStoragePath(path);
-  }
-
+  /**
+   * Discover app-specific storage paths in found iCloud root directories
+   */
   private async _discoverAppStoragePaths(): Promise<void> {
     const rootPaths = Array.from(this.pathMap.values()).filter(info => info.exists && info.isAccessible);
 
@@ -146,6 +170,11 @@ export class WindowsAdapter extends BaseOSAdapter {
     }
   }
 
+  /**
+   * Get list of available drives on Windows
+   *
+   * @returns Array of drive letters (e.g. ['C:', 'D:'])
+   */
   private _getAvailableDrives(): string[] {
     const drives: string[] = [];
     try {
@@ -162,6 +191,14 @@ export class WindowsAdapter extends BaseOSAdapter {
     return drives;
   }
 
+  /**
+   * Enrich path metadata with Windows-specific information
+   *
+   * @param metadata Base metadata
+   * @param path Path to enrich metadata for
+   * @param source Source information
+   * @returns Enriched metadata
+   */
   protected _enrichMetadata(metadata: PathMetadata, path: string, source: PathSource): PathMetadata {
     const enriched: PathMetadata = {
       ...metadata,

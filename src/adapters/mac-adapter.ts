@@ -10,10 +10,18 @@ import {join} from 'path';
 import {PathInfo, PathMetadata, PathSource} from '../types';
 import {BaseOSAdapter} from './base-adapter';
 
+/**
+ * Mac-specific adapter for finding iCloud paths
+ */
 export class MacAdapter extends BaseOSAdapter {
   private readonly MOBILE_DOCUMENTS_PATH = 'Library/Mobile Documents';
   private readonly ICLOUD_ROOT_DIR = 'com.apple.CloudDocs';
 
+  /**
+   * Find iCloud paths on macOS
+   *
+   * @returns Promise resolving to array of path info objects
+   */
   async findPaths(): Promise<PathInfo[]> {
     try {
       const homePath = os.homedir();
@@ -34,6 +42,11 @@ export class MacAdapter extends BaseOSAdapter {
     }
   }
 
+  /**
+   * Discover app-specific storage paths in the Mobile Documents directory
+   *
+   * @param mobileDocsPath Path to the Mobile Documents directory
+   */
   private async _discoverAppStoragePaths(mobileDocsPath: string): Promise<void> {
     try {
       const entries = await fs.promises.readdir(mobileDocsPath, {withFileTypes: true});
@@ -51,6 +64,14 @@ export class MacAdapter extends BaseOSAdapter {
     }
   }
 
+  /**
+   * Enrich path metadata with Mac-specific information
+   *
+   * @param metadata Base metadata
+   * @param path Path to enrich metadata for
+   * @param source Source information
+   * @returns Enriched metadata
+   */
   protected _enrichMetadata(metadata: PathMetadata, path: string, source: PathSource): PathMetadata {
     const enriched: PathMetadata = {
       ...metadata,

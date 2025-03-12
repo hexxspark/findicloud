@@ -4,9 +4,18 @@ import pathModule from 'path';
 import {OSAdapter} from '../adapter';
 import {PathInfo, PathMetadata, PathSource} from '../types';
 
+/**
+ * Base adapter class that implements common functionality for all OS adapters
+ */
 export abstract class BaseOSAdapter implements OSAdapter {
   protected pathMap: Map<string, PathInfo> = new Map();
 
+  /**
+   * Add a path to the internal path map
+   *
+   * @param path Path to add
+   * @param source Source information for the path
+   */
   protected _addPath(path: string, source: PathSource): void {
     const evaluation = this.evaluatePath(path);
     const metadata = this._enrichMetadata(evaluation.metadata, path, source);
@@ -30,8 +39,23 @@ export abstract class BaseOSAdapter implements OSAdapter {
     }
   }
 
+  /**
+   * Enrich metadata with platform-specific information
+   * Must be implemented by platform-specific adapters
+   *
+   * @param metadata Base metadata
+   * @param path Path to enrich metadata for
+   * @param source Source information
+   * @returns Enriched metadata
+   */
   protected abstract _enrichMetadata(metadata: PathMetadata, path: string, source: PathSource): PathMetadata;
 
+  /**
+   * Evaluate a path to determine if it exists, is accessible, and assign a score
+   *
+   * @param path Path to evaluate
+   * @returns Path info object with evaluation results
+   */
   protected evaluatePath(path: string): PathInfo {
     let exists = false;
     let isAccessible = false;
@@ -70,11 +94,23 @@ export abstract class BaseOSAdapter implements OSAdapter {
     };
   }
 
+  /**
+   * Check if a path is an app storage path
+   *
+   * @param path Path to check
+   * @returns True if the path is an app storage path
+   */
   protected isAppStoragePath(path: string): boolean {
     const basename = path.split(pathModule.sep).pop() || '';
     return basename.includes('~') || basename.startsWith('iCloud');
   }
 
+  /**
+   * Parse app name from a path
+   *
+   * @param path Path to parse
+   * @returns Object containing app ID, name, bundle ID, and vendor
+   */
   protected parseAppName(path: string): {appId?: string; appName?: string; bundleId?: string; vendor?: string} {
     const basename = path.split(pathModule.sep).pop() || '';
     const parts = basename.split('~');
@@ -128,6 +164,12 @@ export abstract class BaseOSAdapter implements OSAdapter {
     return {appId, appName, bundleId, vendor};
   }
 
+  /**
+   * Format app name for display
+   *
+   * @param name Raw app name
+   * @returns Formatted app name
+   */
   protected _formatAppName(name: string): string {
     // Handle cases like 'SubApp.Module' -> 'SubApp Module'
     if (name.includes('.')) {
@@ -151,5 +193,11 @@ export abstract class BaseOSAdapter implements OSAdapter {
       .replace(/\b\w/g, c => c.toUpperCase());
   }
 
+  /**
+   * Find paths based on the provided search options
+   * Must be implemented by platform-specific adapters
+   *
+   * @returns Promise resolving to array of path info objects
+   */
   abstract findPaths(): Promise<PathInfo[]>;
 }

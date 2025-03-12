@@ -11,7 +11,6 @@ import {PathInfo} from './types';
 export interface OSAdapter {
   /**
    * Find paths based on the provided search options
-   * @param options Search options to filter paths
    * @returns Array of path results
    */
   findPaths(): Promise<PathInfo[]>;
