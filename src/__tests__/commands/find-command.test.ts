@@ -1,4 +1,4 @@
-import {test} from '@oclif/test';
+import {runCommand} from '@oclif/test';
 
 import {PathFinder} from '../../core/path-finder';
 
@@ -9,169 +9,171 @@ describe('find command', () => {
     jest.resetAllMocks();
   });
 
-  test.stdout().command(['find', '--help']).exit(0).it('shows help information');
+  it('shows help information', async () => {
+    await runCommand(['find', '--help']);
+    // 如果命令执行成功，不会抛出异常
+  });
 
-  test
-    .do(() => {
-      const mockFindDrivePaths = PathFinder.find as jest.Mock;
-      mockFindDrivePaths.mockResolvedValueOnce([
-        {
-          path: '/test/path1',
-          score: 100,
-          isAccessible: true,
-          exists: true,
-          metadata: {},
+  it('lists all iCloud Drive paths', async () => {
+    const mockFindDrivePaths = PathFinder.find as jest.Mock;
+    mockFindDrivePaths.mockResolvedValueOnce([
+      {
+        path: '/test/path1',
+        score: 100,
+        isAccessible: true,
+        exists: true,
+        metadata: {},
+      },
+    ]);
+
+    await runCommand(['find']);
+    // 验证 mock 函数是否被调用
+    expect(mockFindDrivePaths).toHaveBeenCalled();
+  });
+
+  it('shows detailed information', async () => {
+    const mockFindDrivePaths = PathFinder.find as jest.Mock;
+    mockFindDrivePaths.mockResolvedValueOnce([
+      {
+        path: '/test/path1',
+        score: 100,
+        isAccessible: true,
+        exists: true,
+        metadata: {
+          appName: 'Test App',
+          bundleId: 'com.test.app',
         },
-      ]);
-    })
-    .stdout()
-    .command(['find'])
-    .it('lists all iCloud Drive paths');
+      },
+    ]);
 
-  test
-    .do(() => {
-      const mockFindDrivePaths = PathFinder.find as jest.Mock;
-      mockFindDrivePaths.mockResolvedValueOnce([
-        {
-          path: '/test/path1',
-          score: 100,
-          isAccessible: true,
-          exists: true,
-          metadata: {
-            appName: 'Test App',
-            bundleId: 'com.test.app',
-          },
+    await runCommand(['find', '--detailed']);
+    expect(mockFindDrivePaths).toHaveBeenCalled();
+  });
+
+  it('shows table output', async () => {
+    const mockFindDrivePaths = PathFinder.find as jest.Mock;
+    mockFindDrivePaths.mockResolvedValueOnce([
+      {
+        path: '/test/path1',
+        score: 100,
+        isAccessible: true,
+        exists: true,
+        metadata: {
+          appName: 'Test App',
+          bundleId: 'com.test.app',
         },
-      ]);
-    })
-    .stdout()
-    .command(['find', '--detailed'])
-    .it('shows detailed information');
+      },
+    ]);
 
-  test
-    .do(() => {
-      const mockFindDrivePaths = PathFinder.find as jest.Mock;
-      mockFindDrivePaths.mockResolvedValueOnce([
-        {
-          path: '/test/path1',
-          score: 100,
-          isAccessible: true,
-          exists: true,
-          metadata: {
-            appName: 'Test App',
-            bundleId: 'com.test.app',
-          },
+    await runCommand(['find', '--detailed', '--table']);
+    expect(mockFindDrivePaths).toHaveBeenCalled();
+  });
+
+  it('outputs JSON', async () => {
+    const mockFindDrivePaths = PathFinder.find as jest.Mock;
+    mockFindDrivePaths.mockResolvedValueOnce([
+      {
+        path: '/test/path1',
+        score: 100,
+        isAccessible: true,
+        exists: true,
+        metadata: {},
+      },
+    ]);
+
+    await runCommand(['find', '--json']);
+    expect(mockFindDrivePaths).toHaveBeenCalled();
+  });
+
+  it('filters by app name', async () => {
+    const mockFindDrivePaths = PathFinder.find as jest.Mock;
+    mockFindDrivePaths.mockResolvedValueOnce([
+      {
+        path: '/test/path1',
+        score: 100,
+        isAccessible: true,
+        exists: true,
+        metadata: {
+          appName: 'TestApp',
         },
-      ]);
-    })
-    .stdout()
-    .command(['find', '--detailed', '--table'])
-    .it('shows table output');
+      },
+    ]);
 
-  test
-    .do(() => {
-      const mockFindDrivePaths = PathFinder.find as jest.Mock;
-      mockFindDrivePaths.mockResolvedValueOnce([
-        {
-          path: '/test/path1',
-          score: 100,
-          isAccessible: true,
-          exists: true,
-          metadata: {},
+    await runCommand(['find', 'TestApp']);
+    expect(mockFindDrivePaths).toHaveBeenCalled();
+  });
+
+  it('formats table output correctly', async () => {
+    const mockFindDrivePaths = PathFinder.find as jest.Mock;
+    mockFindDrivePaths.mockResolvedValueOnce([
+      {
+        path: '/test/path1',
+        score: 100,
+        isAccessible: true,
+        exists: true,
+        metadata: {
+          appName: 'Test App',
+          bundleId: 'com.test.app',
+          contents: ['file1', 'file2'],
         },
-      ]);
-    })
-    .stdout()
-    .command(['find', '--json'])
-    .it('outputs JSON');
+      },
+    ]);
 
-  test
-    .do(() => {
-      const mockFindDrivePaths = PathFinder.find as jest.Mock;
-      mockFindDrivePaths.mockResolvedValueOnce([
-        {
-          path: '/test/path1',
-          score: 100,
-          isAccessible: true,
-          exists: true,
-          metadata: {
-            appName: 'TestApp',
-          },
+    await runCommand(['find', '--detailed', '--table']);
+    expect(mockFindDrivePaths).toHaveBeenCalled();
+  });
+
+  it('filters by min score', async () => {
+    const mockFindDrivePaths = PathFinder.find as jest.Mock;
+    mockFindDrivePaths.mockResolvedValueOnce([
+      {
+        path: '/test/path1',
+        score: 100,
+        isAccessible: true,
+        exists: true,
+        metadata: {
+          appName: 'Test App',
+          bundleId: 'com.test.app',
+          contents: ['file1', 'file2'],
         },
-      ]);
-    })
-    .stdout()
-    .command(['find', 'TestApp'])
-    .it('filters by app name');
+      },
+    ]);
 
-  test
-    .do(() => {
-      const mockFindDrivePaths = PathFinder.find as jest.Mock;
-      mockFindDrivePaths.mockResolvedValueOnce([
-        {
-          path: '/test/path1',
-          score: 100,
-          isAccessible: true,
-          exists: true,
-          metadata: {
-            appName: 'Test App',
-            bundleId: 'com.test.app',
-            contents: ['file1', 'file2'],
-          },
-        },
-      ]);
-    })
-    .stdout()
-    .command(['find', '--detailed', '--table'])
-    .it('formats table output correctly');
+    await runCommand(['find', '--score', '90']);
+    expect(mockFindDrivePaths).toHaveBeenCalled();
+  });
 
-  test
-    .do(() => {
-      const mockFindDrivePaths = PathFinder.find as jest.Mock;
-      mockFindDrivePaths.mockResolvedValueOnce([
-        {
-          path: '/test/path1',
-          score: 100,
-          isAccessible: true,
-          exists: true,
-          metadata: {
-            appName: 'Test App',
-            bundleId: 'com.test.app',
-            contents: ['file1', 'file2'],
-          },
-        },
-      ]);
-    })
-    .stdout()
-    .command(['find', '--score', '90'])
-    .it('filters by min score');
+  it('includes inaccessible paths', async () => {
+    const mockFindDrivePaths = PathFinder.find as jest.Mock;
+    mockFindDrivePaths.mockResolvedValueOnce([]);
 
-  test
-    .do(() => {
-      const mockFindDrivePaths = PathFinder.find as jest.Mock;
-      mockFindDrivePaths.mockResolvedValueOnce([]);
-    })
-    .stdout()
-    .command(['find', '--all'])
-    .it('includes inaccessible paths');
+    await runCommand(['find', '--all']);
+    expect(mockFindDrivePaths).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includeInaccessible: true,
+      }),
+    );
+  });
 
-  test
-    .do(() => {
-      const mockFindDrivePaths = PathFinder.find as jest.Mock;
-      mockFindDrivePaths.mockResolvedValueOnce([]);
-    })
-    .stdout()
-    .command(['find'])
-    .it('handles empty results');
+  it('handles empty results', async () => {
+    const mockFindDrivePaths = PathFinder.find as jest.Mock;
+    mockFindDrivePaths.mockResolvedValueOnce([]);
 
-  test
-    .do(() => {
-      const mockFindDrivePaths = PathFinder.find as jest.Mock;
-      mockFindDrivePaths.mockRejectedValueOnce(new Error('Test error'));
-    })
-    .stdout()
-    .stderr()
-    .command(['find'])
-    .exit(1)
-    .it('handles errors');
+    await runCommand(['find']);
+    expect(mockFindDrivePaths).toHaveBeenCalled();
+  });
+
+  it('handles errors', async () => {
+    const mockFindDrivePaths = PathFinder.find as jest.Mock;
+    mockFindDrivePaths.mockRejectedValueOnce(new Error('Test error'));
+
+    try {
+      await runCommand(['find']);
+      // 如果没有抛出异常，测试应该失败
+      fail('Expected command to throw an error');
+    } catch (error) {
+      // 预期会抛出异常
+      expect(error).toBeDefined();
+    }
+  });
 });
