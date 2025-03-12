@@ -57,15 +57,18 @@ export abstract class BaseCommand extends Command {
   }
 
   protected handleError(error: unknown, silent = false, exitCode = 2): never {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     if (!silent) {
       if (exitCode === 2) {
-        this.error(error instanceof Error ? error.message : String(error));
+        this.error(errorMessage);
       } else {
-        console.error(error instanceof Error ? error.message : String(error));
+        console.error(errorMessage);
         this.exit(exitCode);
       }
+    } else {
+      this.exit(exitCode);
     }
-    this.exit(exitCode);
+    throw new Error(errorMessage);
   }
 
   protected async prompt<T extends {confirmed: boolean}>(options: string | PromptOptions): Promise<T> {
