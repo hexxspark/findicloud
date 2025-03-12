@@ -1,7 +1,7 @@
 {
   "name": "icloudy",
   "description": "A modern CLI tool for managing your iCloud Drive files and directories",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "keywords": [
     "icloud",
     "icloud drive",
