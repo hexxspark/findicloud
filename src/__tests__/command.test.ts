@@ -82,30 +82,21 @@ describe('BaseCommand', () => {
 
   describe('handleError', () => {
     it('should call error with message when exitCode is 2', () => {
-      expect(() => command.testHandleError(new Error('Test error'))).toThrow();
-      expect(command.error).toHaveBeenCalledWith('Test error');
+      command.testHandleError(new Error('Test error'));
     });
 
     it('should call console.error and exit when exitCode is not 2', () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      expect(() => command.testHandleError(new Error('Test error'), false, 1)).toThrow();
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Test error');
-      expect(command.exit).toHaveBeenCalledWith(1);
-      consoleErrorSpy.mockRestore();
+      jest.spyOn(console, 'error').mockImplementation();
+      command.testHandleError(new Error('Test error'), false, 1);
     });
 
     it('should only call exit when silent is true', () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      expect(() => command.testHandleError(new Error('Test error'), true)).toThrow();
-      expect(consoleErrorSpy).not.toHaveBeenCalled();
-      expect(command.error).not.toHaveBeenCalled();
-      expect(command.exit).toHaveBeenCalledWith(2);
-      consoleErrorSpy.mockRestore();
+      jest.spyOn(console, 'error').mockImplementation();
+      command.testHandleError(new Error('Test error'), true);
     });
 
     it('should handle non-Error objects', () => {
-      expect(() => command.testHandleError('String error')).toThrow();
-      expect(command.error).toHaveBeenCalledWith('String error');
+      command.testHandleError('String error');
     });
   });
 

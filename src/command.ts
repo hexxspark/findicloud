@@ -68,7 +68,6 @@ export abstract class BaseCommand extends Command {
     } else {
       this.exit(exitCode);
     }
-    throw new Error(errorMessage);
   }
 
   protected async prompt<T extends {confirmed: boolean}>(options: string | PromptOptions): Promise<T> {
