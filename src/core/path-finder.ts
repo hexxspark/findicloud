@@ -2,6 +2,9 @@ import {OSAdapter} from '../adapter';
 import {getAdapter} from '../adapters/adapter-factory';
 import {PathInfo, SearchOptions} from '../types';
 
+// 导入扩展的平台类型
+type PlatformWithMock = NodeJS.Platform | 'mock';
+
 /**
  * PathFinder class for locating iCloud paths on different platforms
  */
@@ -10,7 +13,7 @@ export class PathFinder {
 
   // Singleton implementation
   private static instance: PathFinder | null = null;
-  private static platformOverride: NodeJS.Platform | undefined;
+  private static platformOverride: PlatformWithMock | undefined;
 
   /**
    * Get a singleton instance of PathFinder
@@ -18,7 +21,7 @@ export class PathFinder {
    * @param platformOverride Override the platform detection (useful for testing)
    * @returns PathFinder instance
    */
-  public static getInstance(platformOverride?: NodeJS.Platform): PathFinder {
+  public static getInstance(platformOverride?: PlatformWithMock): PathFinder {
     // If a new platform override is provided and is different from the current one, reset the instance
     if (platformOverride !== undefined && platformOverride !== this.platformOverride) {
       this.reset();
@@ -48,7 +51,7 @@ export class PathFinder {
    * @param platformOverride Override the platform detection (useful for testing)
    * @returns Promise resolving to array of path info objects
    */
-  static async find(options?: SearchOptions, platformOverride?: NodeJS.Platform): Promise<PathInfo[]> {
+  static async find(options?: SearchOptions, platformOverride?: PlatformWithMock): Promise<PathInfo[]> {
     const finder = PathFinder.getInstance(platformOverride);
     return await finder.find(options);
   }
@@ -58,7 +61,7 @@ export class PathFinder {
    *
    * @param platformOverride Override the platform detection (useful for testing)
    */
-  constructor(platformOverride?: NodeJS.Platform) {
+  constructor(platformOverride?: PlatformWithMock) {
     this.adapter = getAdapter(platformOverride);
   }
 

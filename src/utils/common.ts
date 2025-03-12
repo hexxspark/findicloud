@@ -80,7 +80,7 @@ export async function copyFileWithStreams(source: string, destination: string, o
       throw new Error(`Target file already exists: ${destination}`);
     }
 
-    // 实现实际的文件复制逻辑
+    // Implement actual file copy logic
     return new Promise((resolve, reject) => {
       const readStream = fs.createReadStream(source);
       const writeStream = fs.createWriteStream(destination);
@@ -100,7 +100,7 @@ export async function copyFileWithStreams(source: string, destination: string, o
       readStream.pipe(writeStream);
     });
   } catch (error: any) {
-    // 直接抛出原始错误，避免嵌套错误消息
+    // Throw original error directly, avoid nested error messages
     if (
       error.message.includes('Target file already exists') ||
       error.message.includes('Failed to read') ||
@@ -123,11 +123,11 @@ export async function calculateTotalSize(filePaths: string[]): Promise<number> {
   for (const filePath of filePaths) {
     try {
       const stats = await fs.promises.stat(filePath);
-      // 检查stats对象是否有isFile方法，如果没有但有size属性，则直接使用size
+      // Check if stats object has isFile method, if not but has size property, use size directly
       if (typeof stats.isFile === 'function' && stats.isFile()) {
         totalSize += stats.size;
       } else if (stats.size !== undefined) {
-        // 如果没有isFile方法但有size属性，直接使用size
+        // If no isFile method but has size property, use size directly
         totalSize += stats.size;
       }
     } catch (error) {

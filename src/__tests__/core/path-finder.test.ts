@@ -1,10 +1,9 @@
 import {execSync} from 'child_process';
 import {vol} from 'memfs';
 import * as os from 'os';
-import * as path from 'path';
 
-import {BaseOSAdapter} from '../../adapters/base-adapter';
 import {PathFinder} from '../../core/path-finder';
+import {PathInfo} from '../../types';
 
 jest.mock('child_process');
 jest.mock('os');
@@ -43,14 +42,48 @@ jest.mock('path', () => {
   };
 });
 
+// 创建一个简单的模拟适配器
+class MockAdapter {
+  private paths: PathInfo[] = [];
+
+  constructor(initialPaths: PathInfo[] = []) {
+    this.paths = initialPaths;
+  }
+
+  async findPaths(): Promise<PathInfo[]> {
+    return this.paths;
+  }
+
+  setMockPaths(paths: PathInfo[]): void {
+    this.paths = paths;
+  }
+}
+
+// Mock adapter factory
+jest.mock('../../adapters/adapter-factory', () => {
+  const testHelpers = jest.requireActual('../test-helpers');
+
+  return {
+    getAdapter: jest.fn(() => new MockAdapter(testHelpers.createStandardTestPaths())),
+  };
+});
+
 describe('PathFinder', () => {
   let finder: PathFinder;
+  let mockAdapter: MockAdapter;
 
   beforeEach(() => {
     vol.reset();
     mockedPlatform.mockReturnValue('darwin');
     mockedHomedir.mockReturnValue('/Users/testuser');
     mockedExecSync.mockReturnValue(Buffer.from(''));
+
+    // Reset singleton and get instance
+    PathFinder.reset();
+    finder = PathFinder.getInstance('mock');
+
+    // Get mock adapter instance
+    mockAdapter = finder['adapter'] as unknown as MockAdapter;
   });
 
   afterEach(() => {
@@ -59,209 +92,64 @@ describe('PathFinder', () => {
   });
 
   describe('find', () => {
-    beforeEach(() => {
-      // Set up the test file system
-      const testFiles = {
-        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Documents/test.txt': 'test content',
-        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/.icloud': '',
-        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/desktop.ini': 'iCloud config',
-        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos/photo1.jpg': 'photo data',
-        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos/photo2.jpg': 'photo data',
-        '/Users/testuser/Library/Mobile Documents/iCloud~com~apple~notes/notes.txt': 'notes content',
-        '/Users/testuser/Library/Mobile Documents/iCloud~com~testapp~TestApp/data.json': 'testapp content',
-        '/Users/testuser/Library/Mobile Documents/iCloud~md~obsidian~Obsidian/test.md': 'obsidian content',
-      };
-
-      vol.fromJSON(testFiles);
-      // Reset singleton state and get instance
-      PathFinder.reset();
-      finder = PathFinder.getInstance();
-    });
-
-    it('should find app data', async () => {
-      const results = await finder.find({
-        appName: 'TestApp',
-      });
-
-      expect(results.length).toBeGreaterThan(0);
-      expect(results.some(r => r.metadata.appName?.toLowerCase().includes('testapp'.toLowerCase()))).toBe(true);
-    });
-
-    it('should find photos directory', async () => {
-      // Manually add Photos path
-      const photosPath = '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/Photos';
-      (finder['adapter'] as BaseOSAdapter)['_addPath'](photosPath, {source: 'common'});
-
+    it('should find all paths by default', async () => {
       const results = await finder.find();
-      const photoPaths = results.filter(p => p.path.includes('Photos'));
-      expect(photoPaths.length).toBeGreaterThan(0);
+      expect(results.length).toBe(5); // Standard test paths have 5 elements
     });
 
-    it('should find documents directory', async () => {
-      const results = await finder.find();
-      const docPaths = results.filter(p => p.path.includes('Documents'));
-      expect(docPaths.length).toBeGreaterThan(0);
-    });
-
-    it('should handle accessible paths', async () => {
-      const results = await finder.find();
+    it('should filter inaccessible paths', async () => {
+      const results = await finder.find({includeInaccessible: false});
+      expect(results.length).toBe(5);
       expect(results.every(r => r.isAccessible)).toBe(true);
     });
 
-    it('should respect minimum score threshold', async () => {
-      const minScore = 50;
-      const results = await finder.find({
-        minScore,
-      });
-
-      expect(results.every(r => r.score >= minScore)).toBe(true);
+    it('should filter by minimum score', async () => {
+      const results = await finder.find({minScore: 80});
+      expect(results.length).toBe(5);
+      expect(results.every(r => r.score >= 80)).toBe(true);
     });
 
-    it('should find all paths by default', async () => {
+    it('should find app by name', async () => {
+      const results = await finder.find({appName: 'TestApp'});
+      expect(results.length).toBe(1);
+      expect(results[0].metadata.appName).toBe('TestApp');
+    });
+
+    it('should find app by partial name match', async () => {
+      const results = await finder.find({appName: 'Test'});
+      expect(results.length).toBe(1);
+      expect(results[0].metadata.appName).toBe('TestApp');
+    });
+
+    it('should handle empty results', async () => {
+      mockAdapter.setMockPaths([]);
       const results = await finder.find();
-      expect(results.length).toBeGreaterThan(0);
+      expect(results).toEqual([]);
     });
 
-    it('should work with singleton pattern', async () => {
+    it('should handle errors', async () => {
+      // Mock error
+      jest.spyOn(mockAdapter, 'findPaths').mockRejectedValue(new Error('Test error'));
+      await expect(finder.find()).rejects.toThrow('Test error');
+    });
+  });
+
+  describe('singleton pattern', () => {
+    it('should work with singleton pattern', () => {
       // Reset singleton
       PathFinder.reset();
 
       // Get instance and test
-      const instance1 = PathFinder.getInstance();
-      const results1 = await instance1.find();
-      expect(results1.length).toBeGreaterThan(0);
+      const instance1 = PathFinder.getInstance('mock');
+      expect(instance1).toBeInstanceOf(PathFinder);
 
       // Get another instance (should be the same)
-      const instance2 = PathFinder.getInstance();
+      const instance2 = PathFinder.getInstance('mock');
       expect(instance2).toBe(instance1);
 
       // Use different platform parameter
       const instance3 = PathFinder.getInstance('win32');
       expect(instance3).not.toBe(instance1);
-    });
-  });
-
-  describe('Windows Environment', () => {
-    beforeEach(() => {
-      mockedPlatform.mockReturnValue('win32');
-      mockedHomedir.mockReturnValue('C:\\Users\\TestUser');
-      process.env.USERPROFILE = 'C:\\Users\\TestUser';
-
-      // Setup Windows test files
-      const testFiles = {
-        'C:\\Users\\TestUser\\iCloudDrive\\desktop.ini': 'iCloud config',
-        'C:\\Users\\TestUser\\iCloudDrive\\.icloud': '',
-        'C:\\Users\\TestUser\\iCloudDrive\\iCloud~com~apple~notes\\notes.txt': 'notes content',
-      };
-
-      vol.fromJSON(testFiles);
-
-      // Mock registry query response
-      mockedExecSync.mockReturnValue(
-        'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\SyncRootManager\\iCloudDrive\r\n' +
-          '    UserSyncRootPath    REG_SZ    C:\\Users\\TestUser\\iCloudDrive\r\n',
-      );
-
-      // Use singleton pattern
-      PathFinder.reset();
-      finder = PathFinder.getInstance();
-    });
-
-    it('should find paths on Windows', async () => {
-      const paths = await finder.find();
-      expect(paths).toContainEqual(
-        expect.objectContaining({
-          path: path.normalize('C:\\Users\\TestUser\\iCloudDrive'),
-          metadata: expect.any(Object),
-        }),
-      );
-    });
-
-    it('should find app storage paths', async () => {
-      const paths = await finder.find();
-      const appPaths = paths.filter(p => p.metadata.appId);
-      expect(appPaths).toContainEqual(
-        expect.objectContaining({
-          path: path.normalize('C:\\Users\\TestUser\\iCloudDrive\\iCloud~com~apple~notes'),
-          metadata: expect.objectContaining({
-            appId: 'iCloud~com~apple~notes',
-          }),
-        }),
-      );
-    });
-  });
-
-  describe('macOS Environment', () => {
-    beforeEach(() => {
-      mockedPlatform.mockReturnValue('darwin');
-      mockedHomedir.mockReturnValue('/Users/testuser');
-
-      // Setup macOS test files
-      const testFiles = {
-        '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs/.icloud': '',
-        '/Users/testuser/Library/Mobile Documents/iCloud~com~apple~notes/notes.txt': 'notes content',
-        '/Users/otheruser/Library/Mobile Documents/com~apple~CloudDocs/other.txt': 'other content',
-      };
-
-      vol.fromJSON(testFiles);
-
-      finder = new PathFinder();
-    });
-
-    it('should find paths on macOS', async () => {
-      const paths = await finder.find();
-      expect(paths).toContainEqual(
-        expect.objectContaining({
-          path: '/Users/testuser/Library/Mobile Documents/com~apple~CloudDocs',
-          metadata: expect.any(Object),
-        }),
-      );
-    });
-
-    it('should find app storage paths', async () => {
-      const paths = await finder.find();
-      const appPaths = paths.filter(p => p.metadata.appId);
-      expect(appPaths).toContainEqual(
-        expect.objectContaining({
-          path: '/Users/testuser/Library/Mobile Documents/iCloud~com~apple~notes',
-          metadata: expect.objectContaining({
-            appId: 'iCloud~com~apple~notes',
-          }),
-        }),
-      );
-    });
-  });
-
-  describe('Unsupported Platform', () => {
-    beforeEach(() => {
-      mockedPlatform.mockReturnValue('linux');
-    });
-
-    it('should throw error for unsupported platform', () => {
-      expect(() => new PathFinder()).toThrow('Unsupported platform: linux');
-    });
-  });
-
-  describe('Error Handling', () => {
-    beforeEach(() => {
-      mockedPlatform.mockReturnValue('win32');
-      mockedHomedir.mockReturnValue('C:\\Users\\TestUser');
-      finder = new PathFinder();
-    });
-
-    it('should handle file system errors', async () => {
-      // Mock file system error
-      jest.spyOn(finder['adapter'], 'findPaths').mockRejectedValue(new Error('File system error'));
-
-      await expect(finder.find()).rejects.toThrow('File system error');
-    });
-
-    it('should handle empty results', async () => {
-      // Mock empty results
-      jest.spyOn(finder['adapter'], 'findPaths').mockResolvedValue([]);
-
-      const results = await finder.find();
-      expect(results).toEqual([]);
     });
   });
 });

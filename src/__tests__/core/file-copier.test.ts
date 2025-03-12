@@ -431,7 +431,7 @@ describe('FileCopier', () => {
         recursive: true,
       };
 
-      // 修改模拟实现，使其抛出正确格式的错误
+      // Modify mock implementation to throw errors in the correct format
       jest.spyOn(fs, 'createReadStream').mockImplementation(() => {
         const mockStream = new (require('stream').Readable)();
         mockStream._read = () => {};
@@ -655,7 +655,7 @@ describe('FileCopier', () => {
       // Mock FileCopier.analyze method for this test
       jest.spyOn(FileCopier.prototype, 'analyze').mockRestore();
 
-      // 直接模拟 findTargetPaths 方法
+      // Directly mock the findTargetPaths method
       jest.spyOn(FileCopier.prototype as any, 'findTargetPaths').mockResolvedValue([
         {
           path: mockTargetPath,
@@ -728,6 +728,45 @@ describe('FileCopier', () => {
       expect(analysis.filesToCopy).toContain(`${mockSourcePath}/file1.txt`);
       expect(analysis.filesToCopy).toContain(`${mockSourcePath}/dir1/file2.txt`);
     });
+
+    it('should use findTargetPaths to locate iCloud paths', async () => {
+      // Mock FileCopier.analyze method for this test
+      jest.spyOn(FileCopier.prototype, 'analyze').mockRestore();
+
+      // Directly mock the findTargetPaths method
+      jest.spyOn(FileCopier.prototype as any, 'findTargetPaths').mockResolvedValue([
+        {
+          path: mockTargetPath,
+          isAccessible: true,
+          exists: true,
+          score: 100,
+          metadata: {
+            appName: 'Documents',
+            source: {source: 'common'},
+          },
+        },
+      ]);
+
+      // Mock file system methods
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'statSync').mockImplementation(_path => {
+        if (String(_path).includes('file')) {
+          return {isFile: () => true, isDirectory: () => false} as any;
+        }
+        return {isFile: () => false, isDirectory: () => true} as any;
+      });
+
+      const fileCopier = new FileCopier();
+      await fileCopier.analyze({
+        source: mockSourcePath,
+        app: 'Documents',
+        recursive: true,
+      });
+
+      // Verify that findTargetPaths and find are called
+      const findTargetPathsSpy = jest.spyOn(fileCopier as any, 'findTargetPaths');
+      expect(findTargetPathsSpy).toHaveBeenCalled();
+    });
   });
 });
 
@@ -778,45 +817,6 @@ describe('FileCopier - Error Handling', () => {
     jest.spyOn(FileCopier.prototype as any, 'copyFile').mockRestore();
     jest.spyOn(FileCopier.prototype, 'analyze').mockRestore();
   });
-
-  it('should use findTargetPaths to locate iCloud paths', async () => {
-    // Mock FileCopier.analyze method for this test
-    jest.spyOn(FileCopier.prototype, 'analyze').mockRestore();
-
-    // 直接模拟 findTargetPaths 方法
-    jest.spyOn(FileCopier.prototype as any, 'findTargetPaths').mockResolvedValue([
-      {
-        path: mockTargetPath,
-        isAccessible: true,
-        exists: true,
-        score: 100,
-        metadata: {
-          appName: 'Documents',
-          source: {source: 'common'},
-        },
-      },
-    ]);
-
-    // Mock file system methods
-    jest.spyOn(fs, 'existsSync').mockReturnValue(true);
-    jest.spyOn(fs, 'statSync').mockImplementation(_path => {
-      if (String(_path).includes('file')) {
-        return {isFile: () => true, isDirectory: () => false} as any;
-      }
-      return {isFile: () => false, isDirectory: () => true} as any;
-    });
-
-    const fileCopier = new FileCopier();
-    await fileCopier.analyze({
-      source: mockSourcePath,
-      app: 'Documents',
-      recursive: true,
-    });
-
-    // Verify that findTargetPaths and find are called
-    const findTargetPathsSpy = jest.spyOn(fileCopier as any, 'findTargetPaths');
-    expect(findTargetPathsSpy).toHaveBeenCalled();
-  });
 });
 
 // Tests for FileCopier.copy method overloads
@@ -825,7 +825,7 @@ describe('FileCopier.copy overloads', () => {
   const mockSourcePath = 'test/source';
   const mockTargetPath = 'test/target';
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     vol.reset();
 

@@ -1,3 +1,4 @@
+import {confirm} from '@inquirer/prompts';
 import {Args, Flags} from '@oclif/core';
 import fs from 'fs';
 import path from 'path';
@@ -74,7 +75,7 @@ export default class CopyCommand extends BaseCommand {
     const options = this.getCommandOptions(flags);
 
     try {
-      // 准备复制选项
+      // Prepare copy options
       const copyOptions: Omit<CopyOptions, 'source' | 'app'> = {
         pattern: flags.pattern,
         recursive: flags.recursive || false,
@@ -92,41 +93,26 @@ export default class CopyCommand extends BaseCommand {
 
       const fileCopier = new FileCopier();
 
-      // 使用新的函数调用方式
-      // First, analyze what files would be copied
-      const analysis = await fileCopier.analyze({
-        source: args.source,
-        app: args.app,
-        pattern: flags.pattern,
-        recursive: flags.recursive,
-      });
-
-      // Show analysis
-      if (!options.silent) {
-        this.displayAnalysis(analysis, {
-          source: args.source,
-          app: args.app,
-          ...copyOptions,
+      // Handle interactive mode
+      if (flags.interactive) {
+        const shouldProceed = await confirm({
+          message: 'Do you want to proceed with the copy operation?',
+          default: true,
         });
-      }
 
-      // If interactive mode is enabled and not skipping confirmation
-      if (copyOptions.interactive && !copyOptions.force) {
-        const {confirm} = await import('@inquirer/prompts');
-        const shouldProceed = await confirm({message: 'Do you want to proceed with the copy operation?'});
         if (!shouldProceed) {
-          this.log(colors.warning('Operation cancelled by user'));
+          this.log(colors.info('Copy operation cancelled by user.'));
           return;
         }
       }
 
-      // 使用新的函数调用方式执行复制
+      // Use the new function call method to execute the copy
       const result = await fileCopier.copy(args.source, args.app, copyOptions);
 
       if (!options.silent) {
-        if (result.success) {
+        if (result && result.success) {
           this.log(colors.success(`\nSuccessfully copied ${result.copiedFiles.length} files to ${result.targetPath}`));
-        } else {
+        } else if (result) {
           this.log(colors.error(`\nFailed to copy ${result.failedFiles.length} files`));
           result.errors.forEach(err => {
             this.log(colors.error(`- ${err.message}`));
@@ -150,12 +136,12 @@ export default class CopyCommand extends BaseCommand {
       if (options.table) {
         this.log(colors.dim('\nFiles to copy (table format):'));
 
-        // 定义列宽
+        // Define column widths
         const pathWidth = 30;
         const sizeWidth = 10;
         const dateWidth = 10;
 
-        // 计算表头和分隔线
+        // Calculate header and separator line
         const header = `Path${' '.repeat(pathWidth - 4)} Size${' '.repeat(sizeWidth - 4)} Last Modified`;
         const separatorWidth = pathWidth + sizeWidth + dateWidth + 2; // +2 for spaces between columns
         const separator = '─'.repeat(separatorWidth);
