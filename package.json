@@ -113,7 +113,6 @@
     "dist",
     "src",
     "bin",
-    "oclif.manifest.json",
     "!*/__tests__"
   ],
   "packageManager": "pnpm@10.6.2",
